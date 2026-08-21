@@ -253,7 +253,7 @@ ERD.editor = (function () {
     attachMenu($('btn-tools'), () => {
       const items = [
         { title: _t('画布工具', 'Canvas Tools') },
-        { icon: 'ri-links-line', label: _t('连线模式（创建外键）…', 'Connect Mode (create FK)…'), onClick: () => ERD.interact.setConnectMode(!ERD.view.connectMode) },
+        { icon: 'ri-links-line', label: _t('连线模式（创建外键，C）…', 'Connect Mode (create FK, C)…'), onClick: () => ERD.interact.setConnectMode(!ERD.view.connectMode) },
         { icon: 'ri-stack-line', label: _t('业务域管理…', 'Business Zones…'), onClick: dlgZones },
         '-',
         { icon: 'ri-eye-line', label: (ERD.view.showLogical ? _t('隐藏', 'Hide') : _t('显示', 'Show')) + _t('逻辑关联', ' Logical Relations'), onClick: () => { document.getElementById('btn-logical').click(); } },
@@ -291,11 +291,14 @@ ERD.editor = (function () {
       { icon: 'ri-git-branch-line', label: _t('Mermaid ER（.mmd）', 'Mermaid ER (.mmd)'), onClick: () => ERD.io.exportMermaid() },
       { icon: 'ri-file-excel-2-line', label: _t('数据字典 Excel（.xlsx）', 'Data Dictionary Excel (.xlsx)'), onClick: () => ERD.io.exportXLSX() }
     ]);
-    /* 帮助：使用帮助 / 更新日志 / 欢迎页 / 关于 / 开源仓库 */
+    /* 帮助：使用帮助 / 更新日志 / 欢迎页 / 贡献 / 隐私 / 关于 / 开源仓库 */
     attachMenu($('btn-help'), [
       { icon: 'ri-question-line', label: _t('使用帮助', 'Help'), onClick: dlgHelp },
       { icon: 'ri-list-ordered', label: _t('更新日志', 'Changelog'), onClick: dlgChangelog },
       { icon: 'ri-star-smile-line', label: _t('欢迎页', 'Welcome'), onClick: showWelcome },
+      '-',
+      { icon: 'ri-user-3-line', label: _t('参与贡献', 'Contributing'), onClick: dlgContributing },
+      { icon: 'ri-eye-off-line', label: _t('隐私与数据', 'Privacy & Data'), onClick: dlgPrivacy },
       '-',
       { icon: 'ri-information-line', label: _t('关于本应用', 'About'), onClick: dlgAbout },
       '-',
@@ -438,8 +441,8 @@ ERD.editor = (function () {
     let colRows = '';
     t.cols.forEach((c, i) => {
       if (c[2] === 'g') {
-        colRows += '<div class="col-row g-row" data-i="' + i + '" draggable="true">' +
-          '<div class="col-cell drag-grip" title="' + _t('拖拽排序', 'Drag to reorder') + '"><i class="ri-drag-move-2-line"></i></div>' +
+        colRows += '<div class="col-row g-row" data-i="' + i + '">' +
+          '<div class="col-cell drag-grip" draggable="true" title="' + _t('拖拽排序', 'Drag to reorder') + '"><i class="ri-drag-move-2-line"></i></div>' +
           '<div class="col-cell"><input class="g-in" data-f="1" value="' + ERD.esc(c[1]) + '" placeholder="' + _t('分组标题', 'Group title') + '"></div>' +
           '<div class="col-cell"><span class="g-badge">' + _t('分组分隔行', 'Group separator') + '</span>' +
           '<button class="mini" data-act="up" title="' + _t('上移', 'Move up') + '"><i class="ri-arrow-up-line"></i></button>' +
@@ -451,8 +454,8 @@ ERD.editor = (function () {
         const nnChk = c[2] === 'pk'
           ? '<input type="checkbox" class="nn" checked disabled title="' + _t('主键隐含非空', 'PK implies NOT NULL') + '">'
           : '<input type="checkbox" class="nn" data-f="4" title="' + _t('非空 NOT NULL', 'NOT NULL') + '"' + (c[4] ? ' checked' : '') + '>';
-        colRows += '<div class="col-row" data-i="' + i + '" draggable="true">' +
-          '<div class="col-cell drag-grip" title="' + _t('拖拽排序', 'Drag to reorder') + '"><i class="ri-drag-move-2-line"></i></div>' +
+        colRows += '<div class="col-row" data-i="' + i + '">' +
+          '<div class="col-cell drag-grip" draggable="true" title="' + _t('拖拽排序', 'Drag to reorder') + '"><i class="ri-drag-move-2-line"></i></div>' +
           '<div class="col-cell"><input class="cname" data-f="0" value="' + ERD.esc(c[0]) + '"></div>' +
           '<div class="col-cell"><div class="tp-wrap"><input class="ctype" data-f="1" value="' + ERD.esc(c[1]) + '"><button class="tp-caret" type="button" tabindex="-1" title="' + _t('选择类型', 'Choose type') + '"><i class="ri-arrow-down-s-line"></i></button></div></div>' +
           '<div class="col-cell"><select class="flag" data-f="2">' + flagSel + '</select></div>' +
@@ -485,7 +488,9 @@ ERD.editor = (function () {
       '<div class="g-tip">' + _t('标记可选 PK 主键 / FK 外键 / UK 唯一 / IDX 索引；✱ 非空 = NOT NULL（主键隐含）；FK 标记由「关系」自动维护<br>回车 = 下方插入新行 · 粘贴多行文本可批量建字段（如 name varchar(50) 名称）',
         'Flags: PK primary / FK foreign / UK unique / IDX index; ✱ = NOT NULL (PK implies it); FK is managed by relations<br>Enter = insert a new row below · Paste multi-line text to batch-add columns (e.g. name varchar(50) comment)') + '</div></div>' +
 
-      '<div class="dock-sec"><h4>' + _t('关系（', 'Relations (') + rels.length + _t('）', ')') + '</h4>' + (relHtml || '<div class="g-tip">' + _t('暂无关系，可用顶部「连线」按钮创建', 'No relations yet. Use the "Connect" button above to create one.') + '</div>') + '</div>' +
+      '<div class="dock-sec"><h4>' + _t('关系（', 'Relations (') + rels.length + _t('）', ')') +
+      '<span class="acts"><button class="btn sm" id="dk-addrel" title="' + _t('新建关系', 'New relation') + '"><i class="ri-add-line"></i>' + _t('新建', 'New') + '</button></span></h4>' +
+      (relHtml || '<div class="g-tip">' + _t('暂无关系，可点右上「新建」，或按住表卡片右下角圆点拖到目标表', 'No relations yet. Click "New" above, or drag the dot on a table’s bottom-right corner to another table.') + '</div>') + '</div>' +
 
       '<div class="dock-sec"><h4>' + _t('操作', 'Actions') + '</h4><div style="display:flex;gap:8px;flex-wrap:wrap">' +
       '<button class="btn" id="dk-dup"><i class="ri-file-copy-line"></i>' + _t('复制表', 'Duplicate') + '</button>' +
@@ -521,6 +526,9 @@ ERD.editor = (function () {
     dockBody.querySelector('#dk-zone').addEventListener('change', commitBase);
     dockBody.querySelector('#dk-core').addEventListener('change', commitBase);
     dockBody.querySelector('#dk-desc').addEventListener('change', commitBase);
+
+    /* 关系区「新建」按钮：以当前表为子表打开关系弹窗 */
+    dockBody.querySelector('#dk-addrel').onclick = () => openRelationDialog({ child: key });
 
     /* 字段表格事件（委托） */
     const tblEl = dockBody.querySelector('.col-tbl');
@@ -807,8 +815,11 @@ ERD.editor = (function () {
       const ct = ERD.store.tableByKey(q('#nr-child').value);
       const pt = ERD.store.tableByKey(q('#nr-parent').value);
       const guess = pt ? (pt.key.replace(/^sys_/, '') + '_id').replace(/s$/, '') : '';
-      q('#nr-col').innerHTML = ct ? ct.cols.filter(c => c[2] !== 'g').map(c =>
-        '<option value="' + ERD.esc(c[0]) + '"' + (c[0] === guess ? ' selected' : '') + '>' + ERD.esc(c[0]) + '</option>').join('') : '';
+      /* 子表缺少 <父表>_id 时提供「自动创建」选项 */
+      const hasGuess = !!(ct && ct.cols.some(c => c[0] === guess));
+      const autoOpt = (pt && !hasGuess) ? '<option value="__auto__">' + _t('自动创建 ', 'Auto-create ') + guess + '</option>' : '';
+      q('#nr-col').innerHTML = autoOpt + (ct ? ct.cols.filter(c => c[2] !== 'g').map(c =>
+        '<option value="' + ERD.esc(c[0]) + '"' + (c[0] === guess ? ' selected' : '') + '>' + ERD.esc(c[0]) + '</option>').join('') : '');
       q('#nr-pcol').innerHTML = pt ? pt.cols.filter(c => c[2] !== 'g').map(c =>
         '<option value="' + ERD.esc(c[0]) + '"' + (c[0] === 'id' || (pt.cols[0] && c[0] === pt.cols[0][0]) ? ' selected' : '') + '>' + ERD.esc(c[0]) + '</option>').join('') : '';
     }
@@ -826,8 +837,22 @@ ERD.editor = (function () {
     q('[data-act=ok]').onclick = () => {
       const type = q('#nr-type').value;
       if (type === 'fk') {
-        const child = q('#nr-child').value, parent = q('#nr-parent').value, col = q('#nr-col').value;
+        let col = q('#nr-col').value;
+        const child = q('#nr-child').value, parent = q('#nr-parent').value;
         if (!child || !parent || !col) { toast(_t('请选择完整的表与字段', 'Please select the full table and column'), 'err'); return; }
+        /* 自动创建外键字段：子表缺少 <父表>_id 时自动补一列 */
+        if (col === '__auto__') {
+          const ct = ERD.store.tableByKey(child);
+          const pt = ERD.store.tableByKey(parent);
+          const base = pt ? (pt.key.replace(/^sys_/, '') + '_id').replace(/s$/, '') : 'fk_id';
+          const names = ct.cols.filter(c => c[2] !== 'g').map(c => c[0]);
+          let name = base, n = 2;
+          while (names.indexOf(name) >= 0) name = base + '_' + n++;
+          const cols = ct.cols.map(c => c.slice());
+          cols.push([name, 'bigint', '', '', false]);
+          ERD.store.setColumns(child, cols, _t('自动补充外键字段', 'Auto-add FK column'));
+          col = name;
+        }
         if (child === parent && q('#nr-pcol').value === col) { toast(_t('自关联的外键字段与父字段不能相同', 'Self-referencing FK column cannot equal the parent column'), 'err'); return; }
         const r = ERD.store.addRelation({ type: 'fk', child, col, parent, parentCol: q('#nr-pcol').value, card: '1:N' });
         ERD.view.sel = { type: 'relation', id: r.id };
@@ -840,6 +865,8 @@ ERD.editor = (function () {
       closeModal();
       ERD.render.renderAll();
       toast(_t('关系已创建', 'Relation created'), 'ok');
+      /* 连线模式连续创建：创建后保持连线模式，可直接继续选下一张子表 */
+      if (preset && preset.fromConnect && ERD.interact && ERD.interact.setConnectMode) ERD.interact.setConnectMode(true);
     };
   }
 
@@ -1282,6 +1309,7 @@ ERD.editor = (function () {
       '· "Tools" menu switches UI language: 简体中文 / English.</div></div>'
     ) + '<div class="dock-sec"><h4>' + _t('关于', 'About') + '</h4><div class="g-tip" style="line-height:2.2">' +
       ERD.esc(OSS.name) + ' · v' + ERD.VERSION + ' · ' + _t('开源', 'Open Source') + '（' + OSS.license + '）<br>' +
+      _t('数据仅存浏览器本地，无后端、无账号、无遥测。', 'Data stays in your browser only; no backend, no accounts, no telemetry.') + '<br>' +
       _t('图标：Remix Icon（Apache-2.0，本地内置）；支持离线 / 内网 / 云 / Docker 部署。', 'Icons: Remix Icon (Apache-2.0, bundled locally); offline / intranet / cloud / Docker ready.') + '<br>' +
       '<a href="' + OSS.github + '" target="_blank" rel="noopener" style="color:var(--accent)">GitHub</a> · <a href="' + OSS.gitee + '" target="_blank" rel="noopener" style="color:var(--accent)">Gitee</a></div></div>';
     const m = openModal(_t('使用帮助与关于', 'Help & About'), 'ri-question-line', body,
@@ -1329,6 +1357,54 @@ ERD.editor = (function () {
     m.querySelector('[data-act=gee]').onclick = () => openRepo(OSS.gitee);
     m.querySelector('[data-act=issue]').onclick = () => openRepo(OSS.issues);
     m.querySelector('[data-act=log]').onclick = () => { closeModal(); dlgChangelog(); };
+  }
+
+  function dlgContributing() {
+    const body =
+      '<div class="g-tip" style="line-height:2;margin-bottom:12px">' +
+      _t('欢迎参与 Aneiang ERD Studio 的开源共建！任何反馈、建议与代码贡献都非常欢迎。', 'Welcome to contribute to Aneiang ERD Studio! Any feedback, suggestions and code contributions are appreciated.') +
+      '</div>' +
+      '<div class="dock-sec"><h4>' + _t('如何贡献', 'How to contribute') + '</h4><div class="g-tip" style="line-height:2.2">' +
+      '· ' + _t('提 Issue / 建议：说明使用场景与复现步骤', 'Report issues / ideas: describe the scenario and repro steps') + '<br>' +
+      '· ' + _t('提交 PR：Fork 仓库 → 新建分支 → 修改 → Pull Request', 'Submit a PR: fork the repo → new branch → make changes → pull request') + '<br>' +
+      '· ' + _t('翻译：新增界面文案请同时提供中 / 英文', 'Translate: provide both Chinese & English for new UI strings') + '</div></div>' +
+      '<div class="dock-sec"><h4>' + _t('开发约定', 'Conventions') + '</h4><div class="g-tip" style="line-height:2.2">' +
+      '· ' + _t('纯原生 HTML/CSS/JS，零依赖、零构建', 'Vanilla HTML/CSS/JS: zero dependency & zero build') + '<br>' +
+      '· ' + _t('修改后请运行 node test/smoke.test.js 冒烟测试', 'Run node test/smoke.test.js after changes') + '<br>' +
+      '· ' + _t('项目以 MIT 协议开源', 'The project is released under the MIT license') + '</div></div>' +
+      '<div class="ab-links">' +
+      '<button class="btn" data-act="repo"><i class="ri-git-branch-line"></i>GitHub</button>' +
+      '<button class="btn" data-act="issue"><i class="ri-error-warning-line"></i>' + _t('反馈 / Issue', 'Feedback / Issues') + '</button>' +
+      '</div>';
+    const m = openModal(_t('参与贡献', 'Contributing'), 'ri-user-3-line', body,
+      '<button class="btn primary" data-act="close">' + _t('知道了', 'Got it') + '</button>', true);
+    m.querySelector('[data-act=close]').onclick = closeModal;
+    m.querySelector('[data-act=repo]').onclick = () => openRepo(OSS.github);
+    m.querySelector('[data-act=issue]').onclick = () => openRepo(OSS.issues);
+  }
+
+  function dlgPrivacy() {
+    const body =
+      '<div class="dock-sec"><h4>' + _t('数据存储', 'Data storage') + '</h4><div class="g-tip" style="line-height:2.2">' +
+      '· ' + _t('所有工程数据仅保存在当前浏览器的 localStorage 中', 'All project data is stored only in your browser’s localStorage') + '<br>' +
+      '· ' + _t('另有 IndexedDB 救援镜像，意外丢失时自动找回', 'An IndexedDB rescue mirror auto-recovers projects after unexpected loss') + '<br>' +
+      '· ' + _t('数据与浏览器 Profile 绑定，请定期「导出 → 工程 JSON」备份', 'Data is bound to the browser profile; back up via "Export → Project JSON" regularly') + '</div></div>' +
+      '<div class="dock-sec"><h4>' + _t('无遥测', 'No telemetry') + '</h4><div class="g-tip" style="line-height:2.2">' +
+      '· ' + _t('本项目无后端、无账号、无第三方统计与遥测', 'No backend, no accounts, no third-party analytics or telemetry') + '<br>' +
+      '· ' + _t('界面图标为本地内置的 Remix Icon（Apache-2.0）', 'Icons are locally bundled Remix Icon (Apache-2.0)') + '<br>' +
+      '· ' + _t('断网 / 内网 / 离线环境完全可用', 'Fully usable offline / intranet / air-gapped') + '</div></div>';
+    const m = openModal(_t('隐私与数据', 'Privacy & Data'), 'ri-eye-off-line', body,
+      '<button class="btn primary" data-act="close">' + _t('知道了', 'Got it') + '</button>');
+    m.querySelector('[data-act=close]').onclick = closeModal;
+  }
+
+  /* PWA 新版本已就绪：刷新应用 */
+  function confirmUpdate() {
+    confirmDlg(
+      _t('检测到新版本，刷新页面即可体验最新功能。', 'A new version is ready. Reload to enjoy the latest features.'),
+      () => location.reload(),
+      _t('立即刷新', 'Reload now')
+    );
   }
 
   function showWelcome() {
@@ -1401,5 +1477,5 @@ ERD.editor = (function () {
     toast(_t('已按业务域自动排列', 'Arranged by zone automatically'), 'ok');
   }
 
-  return { init, toast, confirm: confirmDlg, confirmDeleteTable, confirmDeleteMany, openRelationDialog, renderDock, autoLayout, dlgImport, loadSample, dlgNewTable, dlgNewProject, focusTable, dlgTypes, dlgShareOpen, dlgHelp, dlgAbout, dlgChangelog, showWelcome };
+  return { init, toast, confirm: confirmDlg, confirmDeleteTable, confirmDeleteMany, openRelationDialog, renderDock, autoLayout, dlgImport, loadSample, dlgNewTable, dlgNewProject, focusTable, dlgTypes, dlgShareOpen, dlgHelp, dlgAbout, dlgChangelog, dlgContributing, dlgPrivacy, confirmUpdate, showWelcome };
 })();

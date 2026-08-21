@@ -8,6 +8,10 @@
 
 [English](README.md) | 简体中文
 
+## 界面预览
+
+> 真实界面截图待补充。双击 `index.html` 或运行本地静态服务即可体验；画布内容可用「导出 → PNG」生成高清图。
+
 ## 功能特性
 
 - **可视化编辑**：新建 / 编辑 / 删除表与字段（含分组行、PK/FK/UK/IDX 标记、审计六件套一键补充），业务域归组与域颜色，物理外键与逻辑关联
@@ -38,6 +42,15 @@
 | PNG / SVG | 2 倍分辨率位图 / 无损矢量图，与当前主题配色一致 |
 | Mermaid `.mmd` | 可在 mermaid.live、Typora、支持 Mermaid 的 Markdown 中渲染 |
 | Excel `.xlsx` | 数据字典 4 个 Sheet：总览 / 表清单 / 字段明细 / 关系（零依赖生成） |
+
+## 典型使用流程
+
+1. **建表**：按 `N` 或顶部「新建表」，从模板开始（标准业务表 / 订单 / 用户 / 支付…）
+2. **加字段**：右侧面板用「常用字段」一键追加，或粘贴多行文本批量建字段；`Enter` 在下方插入新行
+3. **建关系**：按住表卡片右下角圆点拖到目标表，或按 `C` 进入连线模式（可连续创建），或右侧「关系」区点「新建」
+   - 子表缺少外键字段时，选「自动创建 `xxx_id`」即可一键补列
+4. **整理**：按业务域「自动布局」，多选表右键可对齐 / 等距分布 / 批量折叠
+5. **导入 / 导出**：导入已有 SQL DDL 逆向生成；导出 SQL（8 种方言）/ PNG / SVG / Mermaid / Excel 数据字典
 
 ## 快速开始
 
@@ -97,6 +110,7 @@ docker buildx build --platform linux/amd64,linux/arm64 -t erd-studio:latest --pu
 | `Ctrl/Cmd+点击` | 多选 / 取消选择表 |
 | `Shift+拖拽` | 框选矩形区域内的表 |
 | `N` | 新建表（模板弹窗） |
+| `C` | 开关连线模式 |
 | `Delete` | 删除选中的表 / 关系 |
 | `Esc` | 退出连线模式 / 取消选择 |
 | `F` / `+` / `-` | 适配窗口 / 放大 / 缩小 |
@@ -144,6 +158,46 @@ docker buildx build --platform linux/amd64,linux/arm64 -t erd-studio:latest --pu
 - 零依赖、零构建：原生 HTML/CSS/JS，无框架、无 npm、无运行时外部请求
 - xlsx 导出为内置最小化实现（ZIP STORE + OOXML），无第三方库
 - PNG 导出基于 SVG 序列化 + Canvas 光栅化，全部在浏览器本地完成
+
+## 常见问题（FAQ）
+
+**数据存在哪里？会丢吗？**
+所有工程数据保存在当前浏览器的 localStorage，另有 IndexedDB 救援镜像兜底。清理浏览器数据或更换浏览器/电脑会清空，重要工程请定期「导出 → 工程 JSON」备份。
+
+**如何迁移到另一台电脑 / 与同事协作？**
+「导出 → 工程 JSON」得到备份文件，新环境「导入」即可完整恢复；也可用「复制分享链接」把工程编码进 URL 传给对方直接打开。内网多人各自浏览器独立存储，通过 JSON 文件交换协作。
+
+**支持哪些数据库？**
+导入解析 PostgreSQL / MySQL 通用 DDL；导出支持 PostgreSQL / MySQL / MariaDB / SQLite / SQL Server / Oracle / 达梦 DM / 人大金仓 KingbaseES 共 8 种方言，自动做类型映射与自增主键适配。
+
+**能离线使用吗？**
+可以。纯前端、零依赖、零外部请求，断网 / 内网 / 离线完全可用；在 HTTPS 或 localhost 环境下还可安装为 PWA 离线使用。
+
+**为什么没有账号 / 云端同步？**
+项目定位「零后端、数据完全私有」，不上传任何数据、无遥测。需要多端同步时用 JSON 文件或分享链接自行流转。
+
+## 浏览器兼容性
+
+推荐使用 Chrome / Edge 最新版；纯原生实现，Firefox / Safari 亦可运行。PWA 安装能力需 HTTPS 或 localhost 环境。
+
+## 致谢
+
+- 界面图标：[Remix Icon](https://remixicon.com)（Apache-2.0，已本地内置）
+- 内置示例为虚构的电商订单系统，不包含任何真实业务信息
+
+## 参与贡献
+
+欢迎参与 Aneiang ERD Studio 的开源共建，任何反馈、建议与代码贡献都非常欢迎。
+
+- **提 Issue / 建议**：在 [GitHub Issues](https://github.com/AneiangSoft/Aneiang.ERD-Studio/issues) 提交，说明使用场景与复现步骤
+- **提交代码**：Fork 仓库 → 新建分支 → 修改 → 发起 Pull Request
+- **翻译**：项目为纯前端中 / 英双语，新增界面文案请同时提供两种语言
+
+开发约定：
+
+- 原生 HTML/CSS/JS，零依赖、零构建
+- 修改后请运行 `node test/smoke.test.js` 冒烟测试
+- 项目以 [MIT License](LICENSE) 开源
 
 ## 代码仓库
 

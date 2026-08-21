@@ -13,6 +13,28 @@ ERD.app = (function () {
     ERD.render.applyFilter();
   }
 
+  /* 顶栏 GitHub 星标数：优先读缓存（1 小时），失败静默隐藏 */
+  function loadStarCount() {
+    const el = document.getElementById('star-cnt');
+    if (!el) return;
+    const fmt = n => n >= 1000 ? (n / 1000).toFixed(1).replace(/\.0$/, '') + 'k' : String(n);
+    const show = n => { el.textContent = fmt(n); el.classList.add('on'); el.parentElement.classList.add('has-cnt'); };
+    try {
+      const d = JSON.parse(localStorage.getItem('erd.star.v1') || 'null');
+      if (d && Date.now() - d.t < 3600e3) { show(d.n); return; }
+    } catch (e) { /* ignore */ }
+    fetch('https://api.github.com/repos/AneiangSoft/Aneiang.ERD-Studio', { cache: 'no-store' })
+      .then(r => (r.ok ? r.json() : null))
+      .then(d => {
+        const n = d && typeof d.stargazers_count === 'number' ? d.stargazers_count : 0;
+        if (n > 0) {
+          show(n);
+          try { localStorage.setItem('erd.star.v1', JSON.stringify({ t: Date.now(), n })); } catch (e) { /* ignore */ }
+        }
+      })
+      .catch(() => { /* 离线 / 请求失败：静默隐藏计数 */ });
+  }
+
   function boot() {
     ERD.ui.apply();          // 恢复主题 / 画布背景偏好
     if (ERD.i18n && ERD.i18n.apply) ERD.i18n.apply();   // 应用界面语言
@@ -34,17 +56,32 @@ ERD.app = (function () {
     /* 分享链接（#e=…）解码后提示打开 */
     if (ERD.io && ERD.io.handleShareHash) ERD.io.handleShareHash();
 
-    /* PWA：注册 Service Worker（需 http(s)，file:// 下跳过） */
+    /* PWA：注册 Service Worker（需 http(s)，file:// 下跳过）
+       首次安装 → 提示「缓存已就绪，支持离线」；后续有更新 → 提示「新版本已就绪」 */
     if ('serviceWorker' in navigator && /^https?:$/.test(location.protocol)) {
-      navigator.serviceWorker.addEventListener('message', e => {
-        if (e.data && e.data.type === 'sw:updated' && ERD.editor && ERD.editor.toast) {
-          ERD.editor.toast('应用缓存已就绪，支持离线使用', 'ok');
-        }
-      });
       window.addEventListener('load', () => {
-        navigator.serviceWorker.register('sw.js', { scope: './' }).catch(e => console.warn('[SW] 注册失败', e));
+        navigator.serviceWorker.register('sw.js', { scope: './' }).then(reg => {
+          const hadCtrl = !!navigator.serviceWorker.controller;   /* 注册时是否已有旧版控制页面 */
+          navigator.serviceWorker.addEventListener('message', e => {
+            if (e.data && e.data.type === 'sw:updated' && !hadCtrl && ERD.editor && ERD.editor.toast) {
+              ERD.editor.toast('应用缓存已就绪，支持离线使用', 'ok');
+            }
+          });
+          reg.addEventListener('updatefound', () => {
+            const nw = reg.installing;
+            if (!nw) return;
+            nw.addEventListener('statechange', () => {
+              if (nw.state === 'installed' && hadCtrl && ERD.editor && ERD.editor.confirmUpdate) {
+                ERD.editor.confirmUpdate();
+              }
+            });
+          });
+        }).catch(e => console.warn('[SW] 注册失败', e));
       });
     }
+
+    /* GitHub 星标数（失败静默隐藏，离线友好；结果缓存 1 小时） */
+    loadStarCount();
 
     ERD.bus.emit('meta');
     ERD.render.renderAll();
@@ -75,6 +112,8 @@ ERD.app = (function () {
     });
     const tipVer = document.getElementById('tip-ver');
     if (tipVer) tipVer.textContent = 'v' + ERD.VERSION;
+    const footVer = document.getElementById('foot-ver');
+    if (footVer) footVer.textContent = 'v' + ERD.VERSION;
 
     /* 刷新时确保落盘 */
     window.addEventListener('beforeunload', () => ERD.store.persist(true));

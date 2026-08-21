@@ -8,6 +8,10 @@ Create and edit database entity-relationship diagrams with a visual canvas, impo
 
 English | [简体中文](README.zh-CN.md)
 
+## Screenshots
+
+> Real screenshots to be added. Open `index.html` (or serve the folder) to try it; use "Export → PNG" to capture the canvas at high resolution.
+
 ## Features
 
 - **Visual editing** — create, rename, and delete tables and fields; group rows; mark PK / FK / UK / IDX; add a standard audit column set in one click; organize tables into business domains with per-domain colors; define physical foreign keys and logical relations
@@ -38,6 +42,15 @@ English | [简体中文](README.zh-CN.md)
 | PNG / SVG | 2x-resolution raster image / lossless vector graphic, colored to the active theme |
 | Mermaid `.mmd` | Render in mermaid.live, Typora, or any Mermaid-enabled Markdown viewer |
 | Excel `.xlsx` | Data dictionary with four sheets (overview / tables / fields / relations), generated with zero dependencies |
+
+## Typical Workflow
+
+1. **Create tables** — press `N` or use "New Table", starting from a template (standard business / order / user / payment…)
+2. **Add fields** — append from the quick-field library in the right panel, or paste multi-line text to batch-add; `Enter` inserts a row below
+3. **Create relations** — drag the dot on a table's bottom-right corner onto another table, press `C` for connect mode (stays active for multiple relations), or click "New" in the relations panel
+   - If the child table lacks a foreign-key column, choose "Auto-create `xxx_id`" to add one in one click
+4. **Tidy up** — auto-layout by business domain; multi-select tables and right-click to align / even distribute / fold
+5. **Import & export** — import existing SQL DDL to reverse-engineer a schema; export SQL (8 dialects), PNG / SVG / Mermaid / Excel data dictionary
 
 ## Quick Start
 
@@ -95,6 +108,7 @@ The platform has **no backend**. All project data is saved to the **current brow
 | `Ctrl+F` | Focus search box |
 | `Ctrl+S` | Save to localStorage immediately |
 | `N` | New table (template dialog) |
+| `C` | Toggle connect mode |
 | `Delete` | Delete the selected table / relation |
 | `Esc` | Exit connect mode / clear selection |
 | `F` / `+` / `-` | Fit to window / Zoom in / Zoom out |
@@ -135,6 +149,46 @@ The platform has **no backend**. All project data is saved to the **current brow
 - Zero dependencies, zero build: plain HTML / CSS / JS, no framework, no npm, no runtime external requests
 - XLSX export is a minimal built-in implementation (ZIP STORE + OOXML) with no third-party library
 - PNG export serializes SVG and rasterizes it on a canvas, all inside the browser
+
+## FAQ
+
+**Where is my data stored? Can I lose it?**
+All project data is saved to the current browser's localStorage, with an IndexedDB rescue mirror as a fallback. Clearing browser data or switching browsers/machines will remove it — back up important projects regularly via "Export → Project JSON".
+
+**How do I move to another machine or collaborate?**
+"Export → Project JSON" produces a backup you can "Import" on a new environment. You can also use "Copy Share Link" to encode a project into a URL and share it directly. On an intranet, each user's browser stores data independently; exchange JSON files to collaborate.
+
+**Which databases are supported?**
+Import parses PostgreSQL / MySQL DDL; export supports 8 dialects — PostgreSQL / MySQL / MariaDB / SQLite / SQL Server / Oracle / DaMeng DM / KingbaseES — with automatic type mapping and auto-increment primary key adaptation.
+
+**Does it work offline?**
+Yes. It is pure frontend with zero dependencies and zero external requests, fully usable offline, on intranets, and in air-gapped networks. On HTTPS or localhost it can also be installed as a PWA for offline use.
+
+**Why is there no account / cloud sync?**
+The project is designed as "zero-backend, data stays private" — nothing is uploaded and there is no telemetry. For multi-device sync, use JSON files or share links.
+
+## Browser Compatibility
+
+Chrome / Edge (latest) recommended. The implementation is vanilla HTML/CSS/JS, so Firefox and Safari work too. PWA installation requires HTTPS or localhost.
+
+## Acknowledgments
+
+- Icons: [Remix Icon](https://remixicon.com) (Apache-2.0, bundled locally)
+- The built-in sample is a fictional e-commerce order system with no real business data
+
+## Contributing
+
+Contributions of any kind — feedback, suggestions, and code — are very welcome.
+
+- **Report issues / ideas**: open an issue on [GitHub Issues](https://github.com/AneiangSoft/Aneiang.ERD-Studio/issues) with the scenario and repro steps
+- **Submit code**: fork the repo → create a branch → make changes → open a pull request
+- **Translate**: the UI is bilingual (简体中文 / English); provide both languages for new strings
+
+Conventions:
+
+- Vanilla HTML/CSS/JS: zero dependency & zero build
+- Run `node test/smoke.test.js` after making changes
+- Released under the [MIT License](LICENSE)
 
 ## Repositories
 

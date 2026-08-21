@@ -112,6 +112,11 @@ ERD.render = (function () {
       t.cols.forEach(c => rows.appendChild(buildRow(t, c)));
       el.appendChild(rows);
     }
+    /* 拖拽连线手柄：悬停显示，按住拖到目标表创建外键 */
+    const port = document.createElement('span');
+    port.className = 't-port';
+    port.title = _t('拖拽到目标表创建外键', 'Drag to another table to create an FK');
+    el.appendChild(port);
     el.querySelector('.t-fold').addEventListener('click', e => {
       e.stopPropagation();
       ERD.store.setFold(t.key, !t.fold);

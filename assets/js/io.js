@@ -211,7 +211,7 @@ ERD.io = (function () {
     }
     const esc = ERD.esc;
     const parts = [];
-    parts.push('<svg xmlns="http://www.w3.org/2000/svg" width="' + (maxX - minX) * scale + '" height="' + (maxY - minY) * scale + '" viewBox="' + minX + ' ' + minY + ' ' + (maxX - minX) + ' ' + (maxY - minY) + '" font-family="Microsoft YaHei, PingFang SC, sans-serif">');
+    parts.push('<svg xmlns="http://www.w3.org/2000/svg" width="' + (maxX - minX) * scale + '" height="' + (maxY - minY) * scale + '" viewBox="' + minX + ' ' + minY + ' ' + (maxX - minX) + ' ' + (maxY - minY) + '" font-family="Segoe UI, PingFang SC, Microsoft YaHei, sans-serif">');
     parts.push('<rect x="' + (minX - 2000) + '" y="' + (minY - 2000) + '" width="' + (maxX - minX + 4000) + '" height="' + (maxY - minY + 4000) + '" fill="' + C.bg + '"/>');
     // 标题
     parts.push('<text x="' + minX + '" y="' + (minY - 14) + '" fill="' + C.title + '" font-size="20" font-weight="600">' + esc(p.name) + ' · ER 图</text>');
@@ -283,11 +283,11 @@ ERD.io = (function () {
             inner += '<text x="' + (t.x + 8) + '" y="' + y + '" fill="' + zc + '" font-size="9" font-weight="600">' + esc(c[1]) + '</text>';
             return;
           }
-          inner += '<text x="' + (t.x + 8) + '" y="' + y + '" fill="' + C.cName + '" font-size="10.5" font-family="Consolas, monospace">' + esc(c[0]) + '</text>';
+          inner += '<text x="' + (t.x + 8) + '" y="' + y + '" fill="' + C.cName + '" font-size="10.5" font-family="Cascadia Code, JetBrains Mono, Consolas, monospace">' + esc(c[0]) + '</text>';
           if (c[4] || c[2] === 'pk') {
             inner += '<text x="' + (t.x + 8 + c[0].length * 6.1 + 2) + '" y="' + y + '" fill="' + C.rose + '" font-size="10.5" font-weight="700">✱</text>';
           }
-          inner += '<text x="' + (t.x + W - 8) + '" y="' + y + '" fill="' + C.cType + '" font-size="9" font-family="Consolas, monospace" text-anchor="end">' + esc(c[1]) + '</text>';
+          inner += '<text x="' + (t.x + W - 8) + '" y="' + y + '" fill="' + C.cType + '" font-size="9" font-family="Cascadia Code, JetBrains Mono, Consolas, monospace" text-anchor="end">' + esc(c[1]) + '</text>';
           if (c[2]) {
             const badgeColor = { pk: C.pk, fk: C.fk, uk: C.uk, idx: C.violet }[c[2]] || C.dim;
             inner += '<text x="' + (t.x + W - 76) + '" y="' + y + '" fill="' + badgeColor + '" font-size="8" font-weight="700" text-anchor="end">' + (c[2] === 'idx' ? 'IDX' : c[2].toUpperCase()) + '</text>';
@@ -300,7 +300,7 @@ ERD.io = (function () {
         '<rect x="' + t.x + '" y="' + t.y + '" width="' + cw + '" height="' + h + '" rx="10" fill="' + C.panel + '" stroke="' + C.line + '"/>' +
         '<path d="M ' + (t.x + 10) + ' ' + t.y + ' h ' + (cw - 20) + '" stroke="' + zc + '" stroke-width="3" fill="none"/>' +
         '<line x1="' + t.x + '" y1="' + (t.y + HH) + '" x2="' + (t.x + cw) + '" y2="' + (t.y + HH) + '" stroke="' + C.line + '"/>' +
-        '<text x="' + (t.x + 10) + '" y="' + (t.y + 16) + '" fill="' + C.tName + '" font-size="11.5" font-weight="700" font-family="Consolas, monospace">' + esc(t.key) + (t.fold ? ' ▸' : '') + '</text>' +
+        '<text x="' + (t.x + 10) + '" y="' + (t.y + 16) + '" fill="' + C.tName + '" font-size="11.5" font-weight="700" font-family="Cascadia Code, JetBrains Mono, Consolas, monospace">' + esc(t.key) + (t.fold ? ' ▸' : '') + '</text>' +
         '<text x="' + (t.x + 10) + '" y="' + (t.y + 33) + '" fill="' + C.dim + '" font-size="9.5">' + meta + '</text>' +
         inner + '</g>');
     });

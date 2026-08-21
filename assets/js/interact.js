@@ -7,6 +7,7 @@ ERD.interact = (function () {
   let dragging = null;   // {key, moved, ox, oy} 或 {group, keys, offsets, moved}
   let panning = null;
   let marquee = null;    // {sx, sy, ex, ey} Shift 框选
+  let linkDrag = null;   // {from} 拖拽连线起点表 key（右下角手柄 → 目标表）
 
   function init() {
     viewport = document.getElementById('viewport');
@@ -37,6 +38,17 @@ ERD.interact = (function () {
   /* ---------- 平移 / 拖拽起点 ---------- */
   function onMouseDown(e) {
     if (e.button !== 0) return;
+    /* 拖拽连线：按住表卡片右下角手柄，拖到目标表创建外键 */
+    if (e.target.closest('.t-port')) {
+      e.preventDefault();
+      const card = e.target.closest('.table');
+      if (!card) return;
+      linkDrag = { from: card.dataset.key };
+      viewport.classList.add('connect');
+      const t = ERD.store.tableByKey(linkDrag.from);
+      if (t && t.el) t.el.classList.add('hi');
+      return;
+    }
     if (e.target.closest('.t-fold')) return;   // 折叠按钮不触发拖拽
     if (e.target.closest('.table')) {
       const card = e.target.closest('.table');
@@ -147,6 +159,10 @@ ERD.interact = (function () {
   }
 
   function onMouseMove(e) {
+    if (linkDrag) {
+      updateGhost(linkDrag.from, e.clientX, e.clientY);
+      return;
+    }
     if (marquee) {
       marquee.ex = e.clientX; marquee.ey = e.clientY;
       updateMarquee(e.clientX, e.clientY);
@@ -188,10 +204,23 @@ ERD.interact = (function () {
       }
       return;
     }
-    if (ERD.view.connectMode && ERD.view.connectFrom) updateGhost(e.clientX, e.clientY);
+    if (ERD.view.connectMode && ERD.view.connectFrom) updateGhost(ERD.view.connectFrom, e.clientX, e.clientY);
   }
 
   function onMouseUp(e) {
+    /* 拖拽连线结束：落在目标表上则打开关系弹窗 */
+    if (linkDrag) {
+      const from = linkDrag.from;
+      linkDrag = null;
+      viewport.classList.remove('connect');
+      const st = ERD.store.tableByKey(from);
+      if (st && st.el) st.el.classList.remove('hi');
+      hideGhost();
+      const target = e.target.closest ? e.target.closest('.table') : null;
+      const toKey = target && target.dataset ? target.dataset.key : null;
+      if (toKey && toKey !== from) ERD.editor.openRelationDialog({ child: from, parent: toKey });
+      return;
+    }
     if (marquee) { finishMarquee(); }
     if (panning) { panning = null; viewport.classList.remove('panning'); }
     if (dragging) {
@@ -287,8 +316,8 @@ ERD.interact = (function () {
     if (hint) {
       hint.className = on ? 'connect' : '';
       hint.innerHTML = on
-        ? '<i class="ri-links-line"></i>' + _t('连线模式：先点击<b style="color:var(--amber)">子表</b>，再点击<b style="color:var(--amber)">父表</b>（Esc 退出）', 'Connect mode: click <b style="color:var(--amber)">child table</b> first, then <b style="color:var(--amber)">parent table</b> (Esc to exit)')
-        : _t('拖拽平移 · 滚轮缩放 · 双击空白建表 · 右键快捷菜单 · N 新建表 · 双击表折叠', 'Drag to pan · Wheel to zoom · Double-click empty canvas to add table · Right-click menu · N new table · Double-click to fold');
+        ? '<i class="ri-links-line"></i>' + _t('连线模式：先点<b style="color:var(--amber)">子表</b>再点<b style="color:var(--amber)">父表</b>，创建后保持模式可连续添加；也可直接拖拽表右下角圆点（C 开关 · Esc 退出）', 'Connect mode: click <b style="color:var(--amber)">child</b> then <b style="color:var(--amber)">parent</b>; stays on for more; or drag the dot on a table’s corner (C toggle · Esc exit)')
+        : _t('拖拽平移 · 滚轮缩放 · 双击空白建表 · 右键快捷菜单 · N 新建表 · C 连线模式 · 双击表折叠', 'Drag to pan · Wheel to zoom · Double-click to add table · Right-click menu · N new table · C connect mode · Double-click to fold');
     }
     hideGhost();
     ERD.render.renderAll();
@@ -304,8 +333,8 @@ ERD.interact = (function () {
       setConnectMode(true);
     } else {
       const child = ERD.view.connectFrom, parent = key;
-      setConnectMode(false);
-      ERD.editor.openRelationDialog({ child, parent });
+      hideGhost();
+      ERD.editor.openRelationDialog({ child, parent, fromConnect: true });
     }
   }
 
@@ -323,9 +352,9 @@ ERD.interact = (function () {
     if (hint) hint.innerHTML = '<i class="ri-links-line"></i>' + _t('已选子表 <b style="color:var(--amber)">' + ERD.esc(key) + '</b>，请点击父表（Esc 取消）', 'Child table <b style="color:var(--amber)">' + ERD.esc(key) + '</b> selected — click parent table (Esc to cancel)');
   }
 
-  function updateGhost(cx, cy) {
+  function updateGhost(fromKey, cx, cy) {
     const g = document.getElementById('ghost'); if (!g) return;
-    const t = ERD.store.tableByKey(ERD.view.connectFrom); if (!t) return;
+    const t = ERD.store.tableByKey(fromKey); if (!t) return;
     const pt = toCanvas(cx, cy);
     g.setAttribute('d', 'M ' + (t.x + ERD.cardW(t) / 2) + ' ' + (t.y + 20) + ' L ' + pt.x + ' ' + pt.y);
     g.style.display = '';
@@ -359,6 +388,12 @@ ERD.interact = (function () {
       return;
     }
     if (e.key === 'Escape') {
+      if (linkDrag) {
+        const s = ERD.store.tableByKey(linkDrag.from);
+        if (s && s.el) s.el.classList.remove('hi');
+        linkDrag = null; viewport.classList.remove('connect'); hideGhost();
+        return;
+      }
       if (ERD.view.connectMode) { setConnectMode(false); return; }
       if (typing) { e.target.blur(); return; }
       clearSelection();
@@ -413,6 +448,7 @@ ERD.interact = (function () {
       return;
     }
     if (e.key === 'n' || e.key === 'N') { e.preventDefault(); ERD.editor.dlgNewTable(); return; }
+    if (e.key === 'c' || e.key === 'C') { e.preventDefault(); setConnectMode(!ERD.view.connectMode); return; }
     if (e.key === 'l' || e.key === 'L') { document.getElementById('btn-logical').click(); return; }
     if (e.key === 'a' || e.key === 'A') { ERD.editor.autoLayout(); return; }
     if (e.key === 'f' || e.key === 'F') { ERD.render.fit(); return; }

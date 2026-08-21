@@ -57,6 +57,15 @@
 .table.near{border-color:var(--near-bd);opacity:1!important}
 .table.dim{opacity:.22}
 .table.connect-src{border-color:var(--amber);box-shadow:0 0 0 1.5px var(--amber),var(--card-shadow-hi)}
+/* 拖拽连线手柄：悬停表卡片右下角出现，按住拖到目标表即创建外键 */
+.table .t-port{
+  position:absolute;right:7px;bottom:7px;width:13px;height:13px;border-radius:50%;
+  background:var(--panel3);border:2px solid var(--accent);cursor:crosshair;z-index:3;
+  opacity:0;transform:scale(.85);
+  transition:opacity var(--dur-fast) var(--ease),transform var(--dur-fast) var(--ease),background var(--dur-fast) var(--ease);
+}
+.table:hover .t-port{opacity:1}
+.table .t-port:hover{transform:scale(1.18);background:var(--accent)}
 .t-head{
   padding:4px 10px;display:flex;flex-direction:column;gap:3px;
   border-bottom:1px solid var(--line);border-top:3px solid var(--accent);
@@ -64,7 +73,7 @@
 .t-row1{display:flex;align-items:center;gap:6px;height:16px}
 .t-row2{display:flex;align-items:center;gap:6px;height:14px}
 .t-head .t-name{
-  font-size:11.5px;font-weight:700;font-family:Consolas,"Courier New",monospace;letter-spacing:.3px;color:var(--t-name);
+  font-size:11.5px;font-weight:700;font-family:var(--font-mono);letter-spacing:.3px;color:var(--t-name);
   flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
 }
 .t-head .t-cn{
@@ -83,7 +92,7 @@
 .rows{max-height:none}
 .row{
   display:flex;align-items:center;gap:6px;height:16.5px;padding:0 8px;
-  font-size:10.5px;font-family:Consolas,"Courier New",monospace;
+  font-size:10.5px;font-family:var(--font-mono);
   border-bottom:1px solid var(--row-bd);
 }
 .row:last-child{border-bottom:none}
