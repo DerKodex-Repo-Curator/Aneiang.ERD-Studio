@@ -1,6 +1,30 @@
-# Aneiang ERD Studio
-
-**零后端、零依赖**的数据库 ER 图在线设计平台，纯前端运行、完全离线可用。
+<div align="center">
+  <img src="assets/icons/logo.svg" alt="Aneiang ERD Studio" width="120" height="120">
+  <h1>Aneiang ERD Studio</h1>
+  <p>
+    <strong>零后端 · 零依赖 · 纯前端 · 离线可用</strong>
+  </p>
+  <p>
+    <a href="https://github.com/AneiangSoft/Aneiang.ERD-Studio/stargazers">
+      <img src="https://img.shields.io/github/stars/AneiangSoft/Aneiang.ERD-Studio?style=flat-square&logo=github&color=blue" alt="GitHub Stars">
+    </a>
+    <a href="https://github.com/AneiangSoft/Aneiang.ERD-Studio/issues">
+      <img src="https://img.shields.io/github/issues/AneiangSoft/Aneiang.ERD-Studio?style=flat-square&logo=github&color=orange" alt="GitHub Issues">
+    </a>
+    <a href="https://github.com/AneiangSoft/Aneiang.ERD-Studio/blob/main/LICENSE">
+      <img src="https://img.shields.io/badge/license-MIT-green?style=flat-square" alt="License">
+    </a>
+    <img src="https://img.shields.io/badge/zero--dependency-yes-brightgreen?style=flat-square" alt="Zero Dependency">
+    <img src="https://img.shields.io/badge/PWA-ready-5a0fc8?style=flat-square&logo=pwa" alt="PWA Ready">
+  </p>
+  <p>
+    <a href="#快速开始">快速开始</a> ·
+    <a href="#功能特性">功能特性</a> ·
+    <a href="#界面预览">界面预览</a> ·
+    <a href="#常见问题faq">FAQ</a> ·
+    <a href="#参与贡献">参与贡献</a>
+  </p>
+</div>
 
 通过可视化画布创建和编辑数据库实体关系图，导入 SQL DDL 逆向生成表结构，并把图与数据字典导出为多种格式。全部在浏览器本地完成——无需账号、无需服务器、无任何遥测。
 
@@ -8,9 +32,26 @@
 
 [English](README.md) | 简体中文
 
+---
+
+## ✨ 核心亮点
+
+| 特性 | 说明 |
+| --- | --- |
+| 🚀 **零部署** | 双击 `index.html` 即用，无需 Node、无需 npm、无需构建 |
+| 🔒 **数据私有** | 全部数据存于浏览器本地，不上传任何服务器，无遥测 |
+| 📴 **完全离线** | 零外部请求，内网 / 断网 / 离线环境均可使用 |
+| 🎨 **6 套主题** | 暗夜 / 午夜蓝 / 极简白 / 商务蓝 / 护眼绿 / 羊皮纸 |
+| 💾 **8 种 SQL 方言** | PostgreSQL / MySQL / MariaDB / SQLite / SQL Server / Oracle / 达梦 / 人大金仓 |
+| 📦 **6 种导出格式** | 工程 JSON / SQL / PNG / SVG / Mermaid / Excel 数据字典 |
+| ⌨️ **高效操作** | 快捷键、右键菜单、拖拽连线、批量对齐、自动布局 |
+| 📱 **PWA 支持** | 可安装为桌面应用，离线启动，秒开体验 |
+
 ## 界面预览
 
-> 真实界面截图待补充。双击 `index.html` 或运行本地静态服务即可体验；画布内容可用「导出 → PNG」生成高清图。
+![主界面 - 画布总览](docs/index.png)
+
+![表详情 - 字段编辑与关系面板](docs/table_detail.png)
 
 ## 功能特性
 
@@ -43,6 +84,31 @@
 | Mermaid `.mmd` | 可在 mermaid.live、Typora、支持 Mermaid 的 Markdown 中渲染 |
 | Excel `.xlsx` | 数据字典 4 个 Sheet：总览 / 表清单 / 字段明细 / 关系（零依赖生成） |
 
+## 🎯 适用场景
+
+- **数据库设计评审**：快速绘制 ER 图，导出 PNG/SVG 用于方案文档与评审会议
+- **遗留系统逆向**：导入现有 SQL DDL，一键生成可视化结构图，辅助理解与重构
+- **内网 / 涉密环境**：零外部请求、纯前端运行，可在内网与隔离环境安全使用
+- **教学与学习**：内置电商示例工程，帮助理解表关系、主键外键、范式设计
+- **个人开发者**：PWA 安装到桌面，随时打开画草图，无需登录、无广告
+- **团队协作**：通过 JSON 文件或分享链接交换设计稿，各自浏览器独立存储
+
+## 🆚 同类工具对比
+
+| 特性 | Aneiang ERD Studio | dbdiagram.io | drawSQL | Navicat |
+| --- | --- | --- | --- | --- |
+| 开源 | ✅ MIT | ❌ 商业 | ❌ 商业 | ❌ 商业 |
+| 离线可用 | ✅ 完全离线 | ❌ 需联网 | ❌ 需联网 | ✅ 桌面端 |
+| 零部署 | ✅ 双击即用 | ❌ 需注册 | ❌ 需注册 | ❌ 安装软件 |
+| 数据隐私 | ✅ 本地存储 | ❌ 云端存储 | ❌ 云端存储 | ✅ 本地 |
+| 价格 | 免费 | 付费 / 免费版受限 | 付费 / 免费版受限 | 付费 |
+| SQL 导入导出 | ✅ 8 种方言 | ✅ 有限 | ✅ 有限 | ✅ 全面 |
+| 可视化画布 | ✅ 拖拽 + 自动布局 | ❌ 代码驱动 | ✅ 拖拽 | ✅ 拖拽 |
+| PWA 安装 | ✅ | ❌ | ❌ | ❌ |
+| 多主题 | ✅ 6 套 | ❌ | ❌ | ✅ 有限 |
+
+> 注：以上对比基于公开信息整理，如有出入欢迎提 Issue 修正。
+
 ## 典型使用流程
 
 1. **建表**：按 `N` 或顶部「新建表」，从模板开始（标准业务表 / 订单 / 用户 / 支付…）
@@ -72,18 +138,26 @@ npx serve .
 
 ### 方式三：Docker 私有化部署（推荐内网使用）
 
+#### 直接拉取官方镜像（推荐）
+
 ```bash
-docker build -t erd-studio .
-docker run -d --name erd-studio -p 8080:80 erd-studio
+docker run -d --name erd-studio -p 8080:80 --restart unless-stopped caco/aneiang-erd-studio:latest
 ```
 
-或使用 compose：
+或使用 docker compose：
 
 ```bash
 docker compose up -d
 ```
 
 访问 http://<服务器IP>:8080 。镜像基于 nginx:alpine，仅约 10MB 增量，无任何外部请求。
+
+#### 自行构建镜像
+
+```bash
+docker build -t erd-studio .
+docker run -d --name erd-studio -p 8080:80 erd-studio
+```
 
 多架构（x86_64 / arm64）构建，需 Docker Buildx：
 
@@ -144,8 +218,7 @@ docker buildx build --platform linux/amd64,linux/arm64 -t erd-studio:latest --pu
 │       └── NOTICE.md       # 图标许可说明
 ├── build/                  # 发布构建（混淆 + 压缩 + 校验 + Lint 配置）
 ├── test/                   # 冒烟测试（Node 运行，无 DOM）
-├── Dockerfile              # nginx:alpine 容器化部署
-├── Dockerfile.dist         # 混淆产物部署
+├── Dockerfile              # nginx:alpine 容器化部署（使用 dist 混淆产物）
 ├── docker-compose.yml
 ├── nginx.conf
 ├── LICENSE                 # MIT
@@ -180,6 +253,20 @@ docker buildx build --platform linux/amd64,linux/arm64 -t erd-studio:latest --pu
 
 推荐使用 Chrome / Edge 最新版；纯原生实现，Firefox / Safari 亦可运行。PWA 安装能力需 HTTPS 或 localhost 环境。
 
+## 🗺️ 路线图
+
+以下为规划中的功能方向，欢迎提 Issue 讨论优先级或参与贡献：
+
+- [ ] **视图 / 存储过程**：支持视图与存储过程的建模与导出
+- [ ] **数据库直连**：通过后端代理连接真实数据库，实时同步结构
+- [ ] **版本对比**：两个工程 / 两个版本的结构差异对比
+- [ ] **团队协作**：基于 CRDT 的多人实时协同编辑
+- [ ] **更多数据库方言**：TiDB、OceanBase、PolarDB 等国产数据库适配
+- [ ] **插件系统**：自定义字段类型、自定义导出格式
+- [ ] **移动端适配**：平板 / 手机端的画布交互优化
+
+> 路线图会根据社区反馈动态调整，已完成的功能会移至「功能特性」章节。
+
 ## 致谢
 
 - 界面图标：[Remix Icon](https://remixicon.com)（Apache-2.0，已本地内置）
@@ -198,6 +285,18 @@ docker buildx build --platform linux/amd64,linux/arm64 -t erd-studio:latest --pu
 - 原生 HTML/CSS/JS，零依赖、零构建
 - 修改后请运行 `node test/smoke.test.js` 冒烟测试
 - 项目以 [MIT License](LICENSE) 开源
+
+## 💖 支持项目
+
+如果 Aneiang ERD Studio 对你有帮助，可以通过以下方式支持：
+
+- ⭐ **点个 Star**：在 [GitHub](https://github.com/AneiangSoft/Aneiang.ERD-Studio) 上点星，让更多人发现这个项目
+- 🐛 **反馈问题**：遇到 Bug 或有改进建议，欢迎提 [Issue](https://github.com/AneiangSoft/Aneiang.ERD-Studio/issues)
+- 🌐 **分享推荐**：分享给同事朋友，或在博客 / 社交媒体上推荐
+- 🌍 **贡献翻译**：帮助完善多语言界面文案
+- 💻 **提交代码**：修复 Bug、实现新功能，发起 Pull Request
+
+每一份支持都是项目持续迭代的动力，感谢每一位贡献者！
 
 ## 代码仓库
 

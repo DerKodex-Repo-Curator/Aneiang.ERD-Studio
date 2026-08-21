@@ -1,6 +1,30 @@
-# Aneiang ERD Studio
-
-A **zero-backend, zero-dependency** online database ER diagram designer that runs entirely in the browser and works offline.
+<div align="center">
+  <img src="assets/icons/logo.svg" alt="Aneiang ERD Studio" width="120" height="120">
+  <h1>Aneiang ERD Studio</h1>
+  <p>
+    <strong>Zero-backend · Zero-dependency · Pure frontend · Offline-ready</strong>
+  </p>
+  <p>
+    <a href="https://github.com/AneiangSoft/Aneiang.ERD-Studio/stargazers">
+      <img src="https://img.shields.io/github/stars/AneiangSoft/Aneiang.ERD-Studio?style=flat-square&logo=github&color=blue" alt="GitHub Stars">
+    </a>
+    <a href="https://github.com/AneiangSoft/Aneiang.ERD-Studio/issues">
+      <img src="https://img.shields.io/github/issues/AneiangSoft/Aneiang.ERD-Studio?style=flat-square&logo=github&color=orange" alt="GitHub Issues">
+    </a>
+    <a href="https://github.com/AneiangSoft/Aneiang.ERD-Studio/blob/main/LICENSE">
+      <img src="https://img.shields.io/badge/license-MIT-green?style=flat-square" alt="License">
+    </a>
+    <img src="https://img.shields.io/badge/zero--dependency-yes-brightgreen?style=flat-square" alt="Zero Dependency">
+    <img src="https://img.shields.io/badge/PWA-ready-5a0fc8?style=flat-square&logo=pwa" alt="PWA Ready">
+  </p>
+  <p>
+    <a href="#quick-start">Quick Start</a> ·
+    <a href="#features">Features</a> ·
+    <a href="#screenshots">Screenshots</a> ·
+    <a href="#faq">FAQ</a> ·
+    <a href="#contributing">Contributing</a>
+  </p>
+</div>
 
 Create and edit database entity-relationship diagrams with a visual canvas, import SQL DDL to reverse-engineer a schema, and export diagrams and data dictionaries in multiple formats. Everything happens locally in your browser — no account, no server, no telemetry.
 
@@ -8,9 +32,26 @@ Create and edit database entity-relationship diagrams with a visual canvas, impo
 
 English | [简体中文](README.zh-CN.md)
 
+---
+
+## ✨ Highlights
+
+| Feature | Description |
+| --- | --- |
+| 🚀 **Zero deployment** | Double-click `index.html` and you're set — no Node, no npm, no build step |
+| 🔒 **Private by design** | All data stays in your browser; nothing is uploaded, no telemetry |
+| 📴 **Fully offline** | Zero external requests — works on intranets, air-gapped networks, offline |
+| 🎨 **6 themes** | Dark / Midnight / Light / Business Blue / Eye-care Green / Paper |
+| 💾 **8 SQL dialects** | PostgreSQL / MySQL / MariaDB / SQLite / SQL Server / Oracle / DaMeng / KingbaseES |
+| 📦 **6 export formats** | Project JSON / SQL / PNG / SVG / Mermaid / Excel data dictionary |
+| ⌨️ **Efficient workflow** | Keyboard shortcuts, context menus, drag-to-connect, batch align, auto layout |
+| 📱 **PWA ready** | Install as a desktop app — offline launch, instant startup |
+
 ## Screenshots
 
-> Real screenshots to be added. Open `index.html` (or serve the folder) to try it; use "Export → PNG" to capture the canvas at high resolution.
+![Main interface - canvas overview](docs/index.png)
+
+![Table detail - field editor & relation panel](docs/table_detail.png)
 
 ## Features
 
@@ -43,6 +84,31 @@ English | [简体中文](README.zh-CN.md)
 | Mermaid `.mmd` | Render in mermaid.live, Typora, or any Mermaid-enabled Markdown viewer |
 | Excel `.xlsx` | Data dictionary with four sheets (overview / tables / fields / relations), generated with zero dependencies |
 
+## Use Cases
+
+- **Database design reviews** — quickly sketch ER diagrams and export PNG/SVG for design docs and review meetings
+- **Legacy system reverse-engineering** — import existing SQL DDL and generate a visual schema map to aid understanding and refactoring
+- **Intranet / air-gapped environments** — zero external requests, pure frontend, safe to use on internal and isolated networks
+- **Teaching & learning** — built-in e-commerce sample project helps understand table relations, PK/FK, and normalization
+- **Individual developers** — install as a PWA, sketch ideas anytime, no login, no ads
+- **Team collaboration** — exchange designs via JSON files or share links; each browser stores data independently
+
+## Comparison
+
+| Feature | Aneiang ERD Studio | dbdiagram.io | drawSQL | Navicat |
+| --- | --- | --- | --- | --- |
+| Open source | ✅ MIT | ❌ Proprietary | ❌ Proprietary | ❌ Proprietary |
+| Offline-ready | ✅ Fully offline | ❌ Online only | ❌ Online only | ✅ Desktop |
+| Zero deployment | ✅ Double-click to run | ❌ Requires signup | ❌ Requires signup | ❌ Install required |
+| Data privacy | ✅ Local storage only | ❌ Cloud storage | ❌ Cloud storage | ✅ Local |
+| Price | Free | Paid / limited free tier | Paid / limited free tier | Paid |
+| SQL import/export | ✅ 8 dialects | ✅ Limited | ✅ Limited | ✅ Full |
+| Visual canvas | ✅ Drag & drop + auto layout | ❌ Code-driven | ✅ Drag & drop | ✅ Drag & drop |
+| PWA installable | ✅ | ❌ | ❌ | ❌ |
+| Multiple themes | ✅ 6 themes | ❌ | ❌ | ✅ Limited |
+
+> Based on publicly available information. Please open an issue if anything is inaccurate.
+
 ## Typical Workflow
 
 1. **Create tables** — press `N` or use "New Table", starting from a template (standard business / order / user / payment…)
@@ -72,18 +138,26 @@ Open http://localhost:8080
 
 ### Option 3 — Docker deployment
 
+#### Pull the official image (recommended)
+
 ```bash
-docker build -t erd-studio .
-docker run -d --name erd-studio -p 8080:80 erd-studio
+docker run -d --name erd-studio -p 8080:80 --restart unless-stopped caco/aneiang-erd-studio:latest
 ```
 
-Or with Compose:
+Or with docker compose:
 
 ```bash
 docker compose up -d
 ```
 
 Open http://<server-ip>:8080. The image is based on `nginx:alpine` (roughly 10 MB incremental) and makes no external requests.
+
+#### Build your own image
+
+```bash
+docker build -t erd-studio .
+docker run -d --name erd-studio -p 8080:80 erd-studio
+```
 
 Multi-architecture (x86_64 / arm64) images require Docker Buildx:
 
@@ -136,7 +210,7 @@ The platform has **no backend**. All project data is saved to the **current brow
 │   └── fonts/
 │       ├── remixicon.woff2 # Remix Icon font (bundled locally)
 │       └── NOTICE.md       # Icon license notice
-├── Dockerfile              # nginx:alpine containerization
+├── Dockerfile              # nginx:alpine containerization (uses dist build)
 ├── docker-compose.yml
 ├── nginx.conf
 ├── LICENSE                 # MIT
@@ -171,6 +245,20 @@ The project is designed as "zero-backend, data stays private" — nothing is upl
 
 Chrome / Edge (latest) recommended. The implementation is vanilla HTML/CSS/JS, so Firefox and Safari work too. PWA installation requires HTTPS or localhost.
 
+## Roadmap
+
+Planned features — feel free to open an issue to discuss priorities or contribute:
+
+- [ ] **Views / stored procedures** — model and export views and stored procedures
+- [ ] **Direct database connection** — connect to a real database via a backend proxy and sync schema in real time
+- [ ] **Schema diff** — compare structure between two projects or two versions
+- [ ] **Real-time collaboration** — CRDT-based multi-user concurrent editing
+- [ ] **More SQL dialects** — TiDB, OceanBase, PolarDB, and other domestic database support
+- [ ] **Plugin system** — custom field types and custom export formats
+- [ ] **Mobile adaptation** — optimized canvas interaction for tablets and phones
+
+> The roadmap is adjusted based on community feedback. Completed items move to the "Features" section.
+
 ## Acknowledgments
 
 - Icons: [Remix Icon](https://remixicon.com) (Apache-2.0, bundled locally)
@@ -189,6 +277,18 @@ Conventions:
 - Vanilla HTML/CSS/JS: zero dependency & zero build
 - Run `node test/smoke.test.js` after making changes
 - Released under the [MIT License](LICENSE)
+
+## Support the Project
+
+If Aneiang ERD Studio is helpful to you, here are ways to show your support:
+
+- ⭐ **Star it** — star the [GitHub repo](https://github.com/AneiangSoft/Aneiang.ERD-Studio) to help more people discover it
+- 🐛 **Report issues** — found a bug or have an idea? Open an [Issue](https://github.com/AneiangSoft/Aneiang.ERD-Studio/issues)
+- 🌐 **Share it** — recommend it to colleagues, friends, or on social media
+- 🌍 **Translate** — help improve the bilingual UI strings
+- 💻 **Contribute code** — fix bugs, implement features, open a Pull Request
+
+Every bit of support keeps the project moving forward — thank you!
 
 ## Repositories
 

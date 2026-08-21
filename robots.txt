@@ -1,0 +1,6 @@
+User-agent: *
+Allow: /
+Disallow: /sw.js
+
+# Sitemap
+Sitemap: https://erd.aneiang.com/sitemap.xml

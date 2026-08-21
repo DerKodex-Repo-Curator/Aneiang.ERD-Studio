@@ -4,10 +4,93 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta name="theme-color" content="#0e1116">
-<meta name="description" content="Aneiang ERD Studio — 数据库 ER 图在线设计平台，纯前端、离线可用、可私有部署">
+<meta name="description" content="Aneiang ERD Studio — 零后端、零依赖的数据库 ER 图在线设计平台，纯前端运行、完全离线可用。支持 8 种 SQL 方言导入导出、6 套主题、可视化拖拽建模、自动布局、PWA 安装。">
+<meta name="keywords" content="ER图,数据库设计,ERD,SQL,数据建模,实体关系图,在线ER图工具,数据库设计工具,离线ER图,纯前端,PostgreSQL,MySQL,数据字典">
+<meta name="author" content="Aneiang Soft">
+<meta name="robots" content="index, follow">
+<meta name="application-name" content="Aneiang ERD Studio">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="ERD Studio">
+<meta name="format-detection" content="telephone=no">
+
+<!-- Canonical -->
+<link rel="canonical" href="https://erd.aneiang.com/">
+<link rel="alternate" hreflang="zh-CN" href="https://erd.aneiang.com/?lang=zh-CN">
+<link rel="alternate" hreflang="en" href="https://erd.aneiang.com/?lang=en">
+<link rel="alternate" hreflang="x-default" href="https://erd.aneiang.com/">
+
+<!-- Open Graph -->
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Aneiang ERD Studio">
+<meta property="og:title" content="Aneiang ERD Studio · 数据库 ER 图在线设计平台">
+<meta property="og:description" content="零后端、零依赖的数据库 ER 图在线设计工具，纯前端运行、完全离线可用。支持 SQL 导入导出、可视化建模、自动布局、PWA 安装。">
+<meta property="og:url" content="https://erd.aneiang.com/">
+<meta property="og:image" content="https://erd.aneiang.com/assets/icons/og-cover.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:locale" content="zh_CN">
+<meta property="og:locale:alternate" content="en_US">
+
+<!-- Twitter Card -->
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Aneiang ERD Studio · 数据库 ER 图在线设计平台">
+<meta name="twitter:description" content="零后端、零依赖的数据库 ER 图在线设计工具，纯前端运行、完全离线可用。">
+<meta name="twitter:image" content="https://erd.aneiang.com/assets/icons/og-cover.png">
+
+<!-- PWA / Icons -->
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" href="assets/icons/icon.svg" type="image/svg+xml">
-<title>Aneiang ERD Studio · 数据库 ER 图在线设计平台</title>
+<link rel="apple-touch-icon" href="assets/icons/icon.svg">
+
+<title>Aneiang ERD Studio · 数据库 ER 图在线设计平台 | 纯前端 · 离线可用</title>
+
+<!-- Structured Data: SoftwareApplication -->
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "SoftwareApplication",
+  "name": "Aneiang ERD Studio",
+  "alternateName": "ERD Studio",
+  "description": "零后端、零依赖的数据库 ER 图在线设计平台，纯前端运行、完全离线可用。支持 8 种 SQL 方言导入导出、可视化拖拽建模、自动布局、PWA 安装。",
+  "url": "https://erd.aneiang.com/",
+  "applicationCategory": "DeveloperApplication",
+  "operatingSystem": "Any (Web browser)",
+  "offers": {
+    "@type": "Offer",
+    "price": "0",
+    "priceCurrency": "CNY"
+  },
+  "license": "https://opensource.org/licenses/MIT",
+  "softwareVersion": "1.0",
+  "author": {
+    "@type": "Organization",
+    "name": "Aneiang Soft"
+  },
+  "aggregateRating": {
+    "@type": "AggregateRating",
+    "ratingValue": "5",
+    "ratingCount": "1"
+  }
+}
+</script>
+
+<!-- Structured Data: BreadcrumbList -->
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BreadcrumbList",
+  "itemListElement": [
+    {
+      "@type": "ListItem",
+      "position": 1,
+      "name": "首页",
+      "item": "https://erd.aneiang.com/"
+    }
+  ]
+}
+</script>
+
 <link rel="stylesheet" href="assets/css/icons.css">
 <link rel="stylesheet" href="assets/css/base.css">
 <link rel="stylesheet" href="assets/css/canvas.css">
@@ -17,7 +100,7 @@
 <!-- ============ 顶部工具栏 ============ -->
 <header>
   <div class="brand">
-    <span class="logo"><i class="ri-flow-chart"></i></span>
+    <span class="logo"><img src="assets/icons/icon.svg" alt="Aneiang ERD Studio Logo"></span>
     <div class="tt"><b>Aneiang ERD Studio</b><small data-i18n data-i18n-zh="数据库 ER 图在线设计 · 纯前端 · 离线可用" data-i18n-en="Online ER diagram designer · pure frontend · offline"></small></div>
   </div>
 

@@ -94,6 +94,15 @@ async function main() {
   swSrc = swSrc.replace(/const CACHE = '[^']*';/, "const CACHE = 'erd-studio-" + Date.now() + "';");
   fs.writeFileSync(path.join(DIST, 'sw.js'), swSrc);
 
+  /* SEO：robots.txt / sitemap.xml 原样拷贝 */
+  const seoFiles = ['robots.txt', 'sitemap.xml'];
+  for (const f of seoFiles) {
+    const src = path.join(ROOT, f);
+    if (fs.existsSync(src)) {
+      fs.copyFileSync(src, path.join(DIST, f));
+    }
+  }
+
   /* JS：逐文件混淆，输出文件名随机化 */
   const jsDir = path.join(ROOT, 'assets', 'js');
   const jsFiles = fs.readdirSync(jsDir).filter(f => f.endsWith('.js'));
