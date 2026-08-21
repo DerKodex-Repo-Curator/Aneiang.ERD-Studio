@@ -1,7 +1,23 @@
 .git
 .gitignore
 README.md
+README.zh-CN.md
 LICENSE
 docker-compose.yml
 Dockerfile
-nginx.conf
+Dockerfile.dist
+node_modules
+build
+test
+docs
+*.md
+assets/
+index.html
+manifest.webmanifest
+sw.js
+robots.txt
+sitemap.xml
+
+# Dockerfile 需要的文件（取消忽略）
+!nginx.conf
+!dist/
