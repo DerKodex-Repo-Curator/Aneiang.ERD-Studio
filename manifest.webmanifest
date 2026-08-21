@@ -1,0 +1,16 @@
+{
+  "name": "Aneiang ERD Studio",
+  "short_name": "ERD Studio",
+  "description": "数据库 ER 图在线设计 · 纯前端 · 离线可用 · 可私有部署",
+  "lang": "zh-CN",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#0e1116",
+  "theme_color": "#0e1116",
+  "icons": [
+    { "src": "assets/icons/icon.svg", "sizes": "512x512", "type": "image/svg+xml", "purpose": "any" },
+    { "src": "assets/icons/icon-maskable.svg", "sizes": "512x512", "type": "image/svg+xml", "purpose": "maskable" }
+  ]
+}

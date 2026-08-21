@@ -13,9 +13,13 @@ English | [简体中文](README.zh-CN.md)
 - **Visual editing** — create, rename, and delete tables and fields; group rows; mark PK / FK / UK / IDX; add a standard audit column set in one click; organize tables into business domains with per-domain colors; define physical foreign keys and logical relations
 - **Fast modeling** — table templates (blank / standard business table / order / inventory / user / payment / audit log), a quick common-field library, multi-line paste to batch-add fields, Enter to keep adding rows, double-click an empty canvas to create a table, and Ctrl+C / Ctrl+V to duplicate tables
 - **Rich interactions** — right-click context menus on the canvas, table cards, field rows, and relations; drag-to-pan, wheel-to-zoom, card drag with 4 px grid snapping; click to focus a table's relations; connect mode (child table → parent table); table / field search; 60-step undo/redo
-- **Multiple projects** — create, switch, rename, duplicate, and delete projects; data auto-saves to browser localStorage
+- **Multi-select & batch** — Ctrl/Cmd-click or Shift-drag (marquee) to select multiple tables, drag them as a group, and right-click for fold/expand, **align & even distribute**, move to a zone, or bulk delete
+- **Mini-map** — a live thumbnail in the bottom-left shows the overall layout and current viewport; click or drag to jump
+- **Multiple projects** — create, switch, rename, duplicate, and delete projects; data auto-saves to browser localStorage with an IndexedDB rescue mirror as a fallback
 - **Themes & canvas styles** — six UI themes (dark, midnight, light, business blue, eye-care green, paper), three canvas background patterns, and three connection line styles (curve / orthogonal / straight); exported images match the active theme
 - **Auto layout** — arrange tables into columns by business domain and tidy up imported schemas in one click
+- **PWA / local files / sharing** — installable as a PWA for offline use; open and save local `.erd` files from the File menu (Ctrl+S syncs); generate a share link (URL-encoded) to load a project on another device; a custom type library for common field types
+- **i18n** — pure frontend bilingual UI (Simplified Chinese / English), switchable from the Tools menu
 - **Built-in sample** — a generic e-commerce order system (12 tables / 4 domains / 11 FKs / 3 logical relations) with no real business data
 
 ### Import
@@ -68,12 +72,19 @@ docker compose up -d
 
 Open http://<server-ip>:8080. The image is based on `nginx:alpine` (roughly 10 MB incremental) and makes no external requests.
 
+Multi-architecture (x86_64 / arm64) images require Docker Buildx:
+
+```bash
+docker buildx build --platform linux/amd64,linux/arm64 -t erd-studio:latest --push .
+```
+
 ## Data Storage
 
 The platform has **no backend**. All project data is saved to the **current browser's** localStorage:
 
 - Data is tied to the browser profile. Switching browsers, machines, or clearing browser data will not migrate it automatically.
 - Back up important projects regularly via **Export → Project JSON**, and restore them in a new environment with **Import**.
+- Every save also mirrors the project into an **IndexedDB rescue vault** — if localStorage is cleared or a write fails, the missing projects are recovered automatically on the next launch.
 - When several people use it on an intranet, each browser stores its own data; share projects by exchanging JSON files.
 
 ## Keyboard Shortcuts

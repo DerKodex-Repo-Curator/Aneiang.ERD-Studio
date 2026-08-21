@@ -122,3 +122,22 @@
 #legend .zdot{display:inline-block;width:9px;height:9px;border-radius:3px;margin-right:6px;vertical-align:-1px}
 #legend .lg-zones>div{cursor:default}
 #legend .lg-nn{color:var(--rose);font-weight:700;font-style:normal}
+
+/* ---------- 迷你地图 ---------- */
+#minimap{
+  position:fixed;left:14px;bottom:44px;z-index:70;
+  border:1px solid var(--line);border-radius:10px;overflow:hidden;
+  background:var(--panel);box-shadow:var(--shadow);cursor:pointer;
+  opacity:.85;transition:opacity .2s;
+}
+#minimap:hover{opacity:1}
+#minimap canvas{display:block}
+
+/* ---------- 多选表 ---------- */
+.table.m-sel{border-color:var(--near-bd);box-shadow:0 0 0 1px var(--near-bd),var(--card-shadow-hi)}
+
+/* ---------- 框选（Shift 拖拽） ---------- */
+#marquee{
+  position:absolute;z-index:120;display:none;pointer-events:none;
+  border:1px dashed var(--amber);background:rgba(224,175,104,.08);border-radius:2px;
+}

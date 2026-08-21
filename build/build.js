@@ -79,6 +79,19 @@ async function main() {
     });
   }
 
+  /* 图标（PWA manifest / favicon 使用）原样拷贝 */
+  const iconSrc = path.join(ROOT, 'assets', 'icons');
+  if (fs.existsSync(iconSrc)) {
+    fs.mkdirSync(path.join(DIST, 'assets', 'icons'), { recursive: true });
+    fs.readdirSync(iconSrc).forEach(f => {
+      fs.copyFileSync(path.join(iconSrc, f), path.join(DIST, 'assets', 'icons', f));
+    });
+  }
+
+  /* PWA：manifest 与 Service Worker 原样拷贝（内容不含待混淆逻辑） */
+  fs.copyFileSync(path.join(ROOT, 'manifest.webmanifest'), path.join(DIST, 'manifest.webmanifest'));
+  fs.copyFileSync(path.join(ROOT, 'sw.js'), path.join(DIST, 'sw.js'));
+
   /* JS：逐文件混淆，输出文件名随机化 */
   const jsDir = path.join(ROOT, 'assets', 'js');
   const jsFiles = fs.readdirSync(jsDir).filter(f => f.endsWith('.js'));

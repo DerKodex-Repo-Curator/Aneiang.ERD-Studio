@@ -6,10 +6,21 @@ ERD.render = (function () {
   const HH = ERD.HEAD_H;
   let canvas, svg, viewport, edgeEls = [], byKey = {}, rafPending = false;
 
+  /* 迷你地图状态 */
+  const mm = { cv: null, ctx: null, W: 170, H: 120, s: 0, ox: 0, oy: 0, bx: 0, by: 0, dragging: false };
+
   function init() {
     canvas = document.getElementById('canvas');
     svg = document.getElementById('edges');
     viewport = document.getElementById('viewport');
+    mm.cv = document.getElementById('mm-canvas');
+    if (mm.cv) {
+      mm.ctx = mm.cv.getContext('2d');
+      mm.cv.addEventListener('pointerdown', mmPointerDown);
+      mm.cv.addEventListener('pointermove', mmPointerMove);
+      mm.cv.addEventListener('pointerup', () => { mm.dragging = false; });
+      mm.cv.addEventListener('pointercancel', () => { mm.dragging = false; });
+    }
     applyView();
   }
 
@@ -23,7 +34,7 @@ ERD.render = (function () {
   function tableH(t) { return ERD.tableH(t); }
   function zoneColor(zoneKey) {
     const z = ERD.store.state.p.zones.find(x => x.key === zoneKey);
-    return z ? z.color : '#8b93a3';
+    return z ? ERD.safeColor(z.color) : '#8b93a3';
   }
   function zoneName(zoneKey) {
     const z = ERD.store.state.p.zones.find(x => x.key === zoneKey);
@@ -201,16 +212,16 @@ ERD.render = (function () {
   function edgePoint(childT, childCol, parentT) {
     const cw = ERD.cardW(childT), pw = ERD.cardW(parentT);
     if (childT === parentT) {
-      const y = colY(childT, childCol);
-      return { from: { x: childT.x, y: y + 14 }, to: { x: childT.x, y: y - 6 }, self: true };
+      const p = ERD.colPos(childT, childCol);
+      return { from: { x: p.x, y: p.y + 14 }, to: { x: p.x, y: p.y - 6 }, self: true };
     }
-    const cy = colY(childT, childCol);
+    const cp = ERD.colPos(childT, childCol);
     const pc = (parentT.cols.find(c => c[0] === 'id') ? 'id' : (parentT.cols[0] && parentT.cols[0][0])) || 'id';
-    const py = colY(parentT, pc);
-    const childLeft = { x: childT.x, y: cy };
-    const childRight = { x: childT.x + cw, y: cy };
-    const parentLeft = { x: parentT.x, y: py };
-    const parentRight = { x: parentT.x + pw, y: py };
+    const pp = ERD.colPos(parentT, pc);
+    const childLeft = { x: childT.x, y: cp.y };
+    const childRight = { x: childT.x + cw, y: cp.y };
+    const parentLeft = { x: parentT.x, y: pp.y };
+    const parentRight = { x: parentT.x + pw, y: pp.y };
     if (parentT.x + pw < childT.x - 10) return { from: parentRight, to: childLeft };
     if (childT.x + cw < parentT.x - 10) return { from: childRight, to: parentLeft };
     if (childT.y > parentT.y) return { from: { x: parentT.x + pw / 2, y: parentT.y + parentT.h }, to: { x: childT.x + cw / 2, y: childT.y } };
@@ -266,6 +277,64 @@ ERD.render = (function () {
     canvas.style.transform = 'translate(' + ERD.view.tx + 'px,' + ERD.view.ty + 'px) scale(' + ERD.view.scale + ')';
     const zi = document.getElementById('zoom-ind');
     if (zi) zi.textContent = Math.round(ERD.view.scale * 100) + '%';
+    renderMinimap();
+  }
+
+  /* ---------- 迷你地图 ---------- */
+  function renderMinimap() {
+    if (!mm.cv || !mm.ctx) return;
+    const p = ERD.store.state.p; if (!p) return;
+    const W = mm.W, H = mm.H, ctx = mm.ctx;
+    ctx.clearRect(0, 0, W, H);
+    ctx.fillStyle = cssVar('--panel2', '#1b202b');
+    ctx.fillRect(0, 0, W, H);
+    if (!p.tables.length) return;
+    const pad = 24;
+    const minX = Math.min(...p.tables.map(t => t.x)) - pad;
+    const minY = Math.min(...p.tables.map(t => t.y)) - pad;
+    const maxX = Math.max(...p.tables.map(t => t.x + ERD.cardW(t))) + pad;
+    const maxY = Math.max(...p.tables.map(t => t.y + ERD.tableH(t))) + pad;
+    mm.bx = minX; mm.by = minY;
+    const bw = Math.max(1, maxX - minX), bh = Math.max(1, maxY - minY);
+    mm.s = Math.min(W / bw, H / bh);
+    mm.ox = (W - bw * mm.s) / 2; mm.oy = (H - bh * mm.s) / 2;
+    /* 表卡片（按域着色） */
+    p.tables.forEach(t => {
+      ctx.fillStyle = zoneColor(t.zone);
+      ctx.fillRect(mm.ox + (t.x - minX) * mm.s, mm.oy + (t.y - minY) * mm.s,
+        Math.max(2, ERD.cardW(t) * mm.s), Math.max(2, ERD.tableH(t) * mm.s));
+    });
+    /* 当前视口 */
+    const r = viewport.getBoundingClientRect();
+    const vx = -ERD.view.tx / ERD.view.scale, vy = -ERD.view.ty / ERD.view.scale;
+    const vw = r.width / ERD.view.scale, vh = r.height / ERD.view.scale;
+    const rx = mm.ox + (vx - minX) * mm.s, ry = mm.oy + (vy - minY) * mm.s;
+    ctx.fillStyle = 'rgba(255,255,255,.07)';
+    ctx.fillRect(rx, ry, vw * mm.s, vh * mm.s);
+    ctx.strokeStyle = cssVar('--edge-hi', '#e0af68');
+    ctx.lineWidth = 1.4;
+    ctx.strokeRect(rx, ry, vw * mm.s, vh * mm.s);
+  }
+
+  function mmJump(mx, my) {
+    if (!mm.s) return;
+    const r = viewport.getBoundingClientRect();
+    const wx = mm.bx + (mx - mm.ox) / mm.s;
+    const wy = mm.by + (my - mm.oy) / mm.s;
+    ERD.view.tx = r.width / 2 - wx * ERD.view.scale;
+    ERD.view.ty = r.height / 2 - wy * ERD.view.scale;
+    applyView();
+  }
+  function mmPointerDown(e) {
+    mm.dragging = true;
+    try { mm.cv.setPointerCapture && mm.cv.setPointerCapture(e.pointerId); } catch (err) { /* 合成事件等场景可忽略 */ }
+    const r = mm.cv.getBoundingClientRect();
+    mmJump(e.clientX - r.left, e.clientY - r.top);
+  }
+  function mmPointerMove(e) {
+    if (!mm.dragging) return;
+    const r = mm.cv.getBoundingClientRect();
+    mmJump(e.clientX - r.left, e.clientY - r.top);
   }
 
   function fit() {
@@ -314,8 +383,15 @@ ERD.render = (function () {
 
   function applySelStyles() {
     const sel = ERD.view.sel;
+    const keys = ERD.view.selKeys || [];
     const p = ERD.store.state.p;
-    p.tables.forEach(t => t.el && t.el.classList.toggle('sel', !!(sel && sel.type === 'table' && sel.id === t.key)));
+    p.tables.forEach(t => {
+      if (!t.el) return;
+      const isSel = !!(sel && sel.type === 'table' && sel.id === t.key);
+      const inMulti = keys.length > 1 && keys.indexOf(t.key) >= 0;
+      t.el.classList.toggle('sel', isSel);
+      t.el.classList.toggle('m-sel', inMulti);
+    });
     edgeEls.forEach(e => {
       const r = e._rel;
       e.classList.toggle('sel', !!(sel && sel.type === 'relation' && r && sel.id === r.id));

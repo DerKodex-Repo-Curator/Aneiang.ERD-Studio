@@ -47,7 +47,7 @@ ERD.io = (function () {
     if (!tables || !Array.isArray(tables)) return { ok: false, error: 'JSON 中缺少 tables 数组' };
     const zones = (j.zones && j.zones.length ? j.zones : [
       { key: 'z1', name: '默认域', color: '#7dcfff' }
-    ]).map(z => ({ key: z.key || ERD.uid('z'), name: z.name || '域', color: z.color || '#7aa2f7' }));
+    ]).map(z => ({ key: z.key || ERD.uid('z'), name: z.name || '域', color: ERD.safeColor(z.color) }));
     tables.forEach(t => {
       t.key = String(t.key || t.name || 'table').toLowerCase();
       t.cn = t.cn || ''; t.desc = t.desc || t.description || '';
@@ -65,7 +65,7 @@ ERD.io = (function () {
       ok: true, kind: 'project',
       project: {
         name: j.name || '导入工程', description: j.description || j.desc || '',
-        dbType: j.dbType || 'postgresql',
+        dbType: j.dbType || 'postgresql', schemaVersion: j.schemaVersion || 1,
         zones, tables, relations
       }
     };
@@ -95,7 +95,7 @@ ERD.io = (function () {
       incZones.forEach(z => {
         const exist = cur.zones.find(x => x.name === z.name);
         if (exist) { zoneMap[z.key] = exist.key; return; }
-        const nz = { key: ERD.uid('z'), name: z.name, color: z.color };
+        const nz = { key: ERD.uid('z'), name: z.name, color: ERD.safeColor(z.color) };
         cur.zones.push(nz); zoneMap[z.key] = nz.key;
       });
     }
@@ -149,12 +149,17 @@ ERD.io = (function () {
   }
 
   /* ================= 导出：JSON ================= */
-  function exportJSON() {
+  /* 工程数据快照（导出 JSON 与本地文件保存共用） */
+  function projectData() {
     const p = JSON.parse(JSON.stringify(ERD.store.state.p));
     p.tables.forEach(t => { delete t.el; delete t.h; });
     p.exportedAt = new Date().toISOString();
     p.app = 'Aneiang ERD Studio v1.0';
-    download(baseName() + '_' + stamp() + '.json', JSON.stringify(p, null, 2), 'application/json');
+    return p;
+  }
+
+  function exportJSON() {
+    download(baseName() + '_' + stamp() + '.json', JSON.stringify(projectData(), null, 2), 'application/json');
     ok('已导出工程 JSON');
   }
 
@@ -224,7 +229,7 @@ ERD.io = (function () {
       const w = Math.max(...ts.map(t => t.x + ERD.cardW(t))) + 20 - x;
       const h = Math.max(...ts.map(t => t.y + ERD.tableH(t))) + 20 - y;
       parts.push('<rect x="' + x + '" y="' + y + '" width="' + w + '" height="' + h + '" rx="16" fill="' + C.zoneBg + '" stroke="' + C.zoneBd + '" stroke-dasharray="6 6"/>');
-      parts.push('<text x="' + (x + 14) + '" y="' + (y - 8) + '" fill="' + z.color + '" font-size="13" font-weight="600" letter-spacing="3">' + esc(z.name) + ' · ' + ts.length + ' 表</text>');
+      parts.push('<text x="' + (x + 14) + '" y="' + (y - 8) + '" fill="' + ERD.safeColor(z.color) + '" font-size="13" font-weight="600" letter-spacing="3">' + esc(z.name) + ' · ' + ts.length + ' 表</text>');
     });
 
     // 连线
@@ -267,7 +272,7 @@ ERD.io = (function () {
 
     // 表卡片（单列字段，支持折叠）
     p.tables.forEach(t => {
-      const zc = (p.zones.find(z => z.key === t.zone) || {}).color || C.dim;
+      const zc = ERD.safeColor((p.zones.find(z => z.key === t.zone) || {}).color) || C.dim;
       const cw = ERD.cardW(t), h = ERD.tableH(t);
       const nCols = t.cols.filter(c => c[2] !== 'g').length;
       let inner = '';
@@ -530,5 +535,165 @@ ERD.io = (function () {
     ok('已导出数据字典 Excel（4 个 Sheet）');
   }
 
-  return { parseAuto, importData, exportJSON, exportSQL, exportPNG, exportSVG, exportMermaid, exportXLSX };
+  /* ================= 本地文件（File System Access API） ================= */
+  let fileHandle = null;
+
+  async function openLocalFile() {
+    if (!window.showOpenFilePicker) {
+      ERD.bus.emit('status', { msg: '当前环境不支持直接打开本地文件（需 HTTPS 或 localhost），已打开导入窗口', kind: 'warn' });
+      if (ERD.editor && ERD.editor.dlgImport) ERD.editor.dlgImport();
+      return;
+    }
+    try {
+      const [handle] = await window.showOpenFilePicker({
+        multiple: false,
+        types: [{ description: 'ERD 工程 / JSON', accept: { 'application/json': ['.erd', '.json'] } }]
+      });
+      const file = await handle.getFile();
+      const text = await file.text();
+      const r = parseAuto(text);
+      if (!r.ok) { ERD.bus.emit('status', { msg: '无法解析文件：' + r.error, kind: 'err' }); return; }
+      fileHandle = handle;
+      if (r.kind === 'project') {
+        const pj = r.project;
+        pj.id = ERD.uid('p');
+        ERD.store.create(pj.name, pj.description, pj);
+        ERD.render.renderAll(); ERD.render.fit();
+      } else {
+        importData(r, 'merge');
+        ERD.render.renderAll(); ERD.render.fit();
+      }
+      ok('已打开本地文件：' + file.name + (r.kind === 'schema' ? '（SQL 已合并到当前工程）' : ''));
+    } catch (e) {
+      if (e && e.name === 'AbortError') return;   // 用户取消
+      ERD.bus.emit('status', { msg: '打开文件失败：' + (e && e.message ? e.message : e), kind: 'err' });
+    }
+  }
+
+  async function saveProjectFile() {
+    if (!fileHandle) return saveProjectFileAs();
+    try {
+      const w = await fileHandle.createWritable();
+      await w.write(JSON.stringify(projectData(), null, 2));
+      await w.close();
+      ok('已保存到文件（Ctrl+S 同步保存）');
+      return true;
+    } catch (e) {
+      ERD.bus.emit('status', { msg: '保存到文件失败：' + (e && e.message ? e.message : e), kind: 'err' });
+      return false;
+    }
+  }
+
+  async function saveProjectFileAs() {
+    if (!window.showSaveFilePicker) { exportJSON(); return false; }
+    try {
+      const handle = await window.showSaveFilePicker({
+        suggestedName: baseName() + '.erd',
+        types: [{ description: 'ERD 工程', accept: { 'application/json': ['.erd', '.json'] } }]
+      });
+      const w = await handle.createWritable();
+      await w.write(JSON.stringify(projectData(), null, 2));
+      await w.close();
+      fileHandle = handle;
+      ok('已保存到文件');
+      return true;
+    } catch (e) {
+      if (e && e.name === 'AbortError') return false;
+      ERD.bus.emit('status', { msg: '保存失败：' + (e && e.message ? e.message : e), kind: 'err' });
+      return false;
+    }
+  }
+
+  /* ================= 分享链接（URL hash，压缩编码） ================= */
+  function bytesToB64url(bytes) {
+    let s = '';
+    const CHUNK = 0x8000;
+    for (let i = 0; i < bytes.length; i += CHUNK) {
+      s += String.fromCharCode.apply(null, bytes.subarray(i, i + CHUNK));
+    }
+    return btoa(s).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+  }
+  function b64urlToBytes(str) {
+    const s = str.replace(/-/g, '+').replace(/_/g, '/');
+    const pad = s.length % 4 ? '='.repeat(4 - s.length % 4) : '';
+    const bin = atob(s + pad);
+    const bytes = new Uint8Array(bin.length);
+    for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+    return bytes;
+  }
+
+  async function buildShareLink() {
+    if (location.protocol === 'file:') {
+      ERD.bus.emit('status', { msg: 'file:// 模式下分享链接无法跨设备使用，请通过静态服务器/部署后使用，或导出工程 JSON', kind: 'warn' });
+    }
+    const json = JSON.stringify(projectData());
+    let enc;
+    if (typeof CompressionStream !== 'undefined' && typeof DecompressionStream !== 'undefined') {
+      const cs = new CompressionStream('deflate-raw');
+      const stream = new Blob([json], { type: 'text/plain' }).stream().pipeThrough(cs);
+      const ab = await new Response(stream).arrayBuffer();
+      enc = '1' + bytesToB64url(new Uint8Array(ab));
+    } else {
+      enc = '0' + bytesToB64url(new TextEncoder().encode(json));
+    }
+    const url = location.href.split('#')[0] + '#e=' + enc;
+    if (url.length > 8000) {
+      ERD.bus.emit('status', { msg: '链接较长（约 ' + Math.round(url.length / 1024) + ' KB），部分工具可能截断，建议改用工程 JSON 分享', kind: 'warn' });
+    }
+    return url;
+  }
+
+  function fallbackCopy(text, done) {
+    try {
+      const ta = document.createElement('textarea');
+      ta.value = text;
+      ta.style.cssText = 'position:fixed;opacity:0';
+      document.body.appendChild(ta);
+      ta.select();
+      document.execCommand('copy');
+      ta.remove();
+      done();
+    } catch (e) { ERD.bus.emit('status', { msg: '复制失败，请手动选择链接', kind: 'warn' }); }
+  }
+
+  async function copyShareLink() {
+    const url = await buildShareLink();
+    const done = () => ok('分享链接已复制，打开即载入工程');
+    if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(url).then(done, () => fallbackCopy(url, done));
+    else fallbackCopy(url, done);
+  }
+
+  async function decodeShare(body) {
+    const prefix = body[0];
+    const b64 = body.slice(1);
+    const bytes = b64urlToBytes(b64);
+    if (prefix === '1' && typeof DecompressionStream !== 'undefined') {
+      const ds = new DecompressionStream('deflate-raw');
+      const stream = new Blob([bytes]).stream().pipeThrough(ds);
+      const ab = await new Response(stream).arrayBuffer();
+      return new TextDecoder().decode(ab);
+    }
+    return new TextDecoder().decode(bytes);
+  }
+
+  async function handleShareHash() {
+    const m = (location.hash || '').match(/[#&]e=([A-Za-z0-9_\-]+)/);
+    if (!m) return false;
+    let json;
+    try { json = await decodeShare(m[1]); }
+    catch (e) { console.warn('[share] 解码失败', e); return false; }
+    const r = parseAuto(json);
+    if (!r.ok) { ERD.bus.emit('status', { msg: '分享链接内容无法解析', kind: 'err' }); return false; }
+    try { history.replaceState(null, '', location.pathname + location.search); } catch (e) { /* file:// 下可能受限 */ }
+    if (ERD.editor && ERD.editor.dlgShareOpen) ERD.editor.dlgShareOpen(r);
+    return true;
+  }
+
+  return {
+    parseAuto, importData, exportJSON, exportSQL, exportPNG, exportSVG, exportMermaid, exportXLSX,
+    projectData,
+    openLocalFile, saveProjectFile, saveProjectFileAs,
+    buildShareLink, copyShareLink, handleShareHash,
+    getFileHandle: () => fileHandle
+  };
 })();

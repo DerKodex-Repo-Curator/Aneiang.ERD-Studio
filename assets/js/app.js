@@ -12,6 +12,7 @@ ERD.app = (function () {
 
   function boot() {
     ERD.ui.apply();          // 恢复主题 / 画布背景偏好
+    if (ERD.i18n && ERD.i18n.apply) ERD.i18n.apply();   // 应用界面语言
     ERD.render.init();
     ERD.interact.init();
     ERD.editor.init();
@@ -21,6 +22,26 @@ ERD.app = (function () {
 
     /* 首次使用播种示例工程 */
     ERD.store.init(function () { return window.ERD_SAMPLE; });
+    /* 从救援保险箱找回 localStorage 缺失的工程 */
+    if (ERD.store.vaultRestore) ERD.store.vaultRestore();
+
+    /* 类型候选列表并入自定义类型 */
+    if (ERD.types && ERD.types.syncDatalist) ERD.types.syncDatalist();
+
+    /* 分享链接（#e=…）解码后提示打开 */
+    if (ERD.io && ERD.io.handleShareHash) ERD.io.handleShareHash();
+
+    /* PWA：注册 Service Worker（需 http(s)，file:// 下跳过） */
+    if ('serviceWorker' in navigator && /^https?:$/.test(location.protocol)) {
+      navigator.serviceWorker.addEventListener('message', e => {
+        if (e.data && e.data.type === 'sw:updated' && ERD.editor && ERD.editor.toast) {
+          ERD.editor.toast('应用缓存已就绪，支持离线使用', 'ok');
+        }
+      });
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('sw.js', { scope: './' }).catch(e => console.warn('[SW] 注册失败', e));
+      });
+    }
 
     ERD.bus.emit('meta');
     ERD.render.renderAll();

@@ -72,7 +72,7 @@ ERD.editor = (function () {
         if (it === '-') { m.appendChild(div('msep')); return; }
         if (it.title) { const t = div('mtitle'); t.textContent = it.title; m.appendChild(t); return; }
         const mi = div('mi' + (it.danger ? ' danger' : ''));
-        mi.innerHTML = '<i class="' + it.icon + '"></i><span>' + it.label + '</span>' + (it.right || '');
+        mi.innerHTML = '<i class="' + it.icon + '"></i><span>' + ERD.esc(it.label) + '</span>' + (it.right || '');
         mi.onclick = () => { closeMenus(); it.onClick(); };
         m.appendChild(mi);
       });
@@ -114,44 +114,81 @@ ERD.editor = (function () {
     });
 
     attachMenu($('btn-proj-menu'), [
-      { icon: 'ri-add-line', label: '新建工程…', onClick: dlgNewProject },
-      { icon: 'ri-edit-line', label: '重命名当前工程…', onClick: dlgRenameProject },
-      { icon: 'ri-file-copy-line', label: '复制当前工程', onClick: () => {
+      { icon: 'ri-add-line', label: _t('新建工程…', 'New Project…'), onClick: dlgNewProject },
+      { icon: 'ri-edit-line', label: _t('重命名当前工程…', 'Rename Current Project…'), onClick: dlgRenameProject },
+      { icon: 'ri-file-copy-line', label: _t('复制当前工程', 'Duplicate Project'), onClick: () => {
           const id = ERD.store.duplicate(ERD.store.state.p.id);
-          if (id) { ERD.store.open(id); toast('已复制工程', 'ok'); }
+          if (id) { ERD.store.open(id); toast(_t('已复制工程', 'Project duplicated'), 'ok'); }
         } },
-      { icon: 'ri-delete-bin-line', label: '删除当前工程', danger: true, onClick: () => {
+      { icon: 'ri-delete-bin-line', label: _t('删除当前工程', 'Delete Project'), danger: true, onClick: () => {
           const p = ERD.store.state.p;
-          confirmDlg('确认删除工程「' + ERD.esc(p.name) + '」？该操作不可恢复，请先导出 JSON 备份。', () => {
+          confirmDlg(_t('确认删除工程「' + ERD.esc(p.name) + '」？该操作不可恢复，请先导出 JSON 备份。', 'Delete project "' + ERD.esc(p.name) + '"? This cannot be undone. Export a JSON backup first.'), () => {
             const rest = ERD.store.list().filter(x => x.id !== p.id);
-            if (ERD.store.remove(p.id)) { ERD.store.open(rest[0].id); toast('已删除工程', 'ok'); }
-          }, '删除');
+            if (ERD.store.remove(p.id)) { ERD.store.open(rest[0].id); toast(_t('已删除工程', 'Project deleted'), 'ok'); }
+          }, _t('删除', 'Delete'));
         } },
       '-',
-      { icon: 'ri-database-2-line', label: '载入内置演示示例（电商订单系统）', onClick: loadSample }
+      { icon: 'ri-database-2-line', label: _t('载入内置演示示例（电商订单系统）', 'Load built-in sample (e-commerce)'), onClick: loadSample }
     ]);
 
     $('btn-newtable').onclick = () => dlgNewTable();
-    $('btn-connect').onclick = () => ERD.interact.setConnectMode(!ERD.view.connectMode);
-    $('btn-zones').onclick = dlgZones;
+
+    /* 文件：打开/保存本地文件、导入、分享链接、类型库 */
+    attachMenu($('btn-file'), [
+      { icon: 'ri-folder-open-line', label: _t('打开本地文件…（.erd / .json）', 'Open Local File… (.erd / .json)'), onClick: () => ERD.io.openLocalFile() },
+      { icon: 'ri-save-line', label: _t('保存到本地文件（Ctrl+S 同步）', 'Save to File (Ctrl+S)'), onClick: () => ERD.io.saveProjectFile() },
+      { icon: 'ri-save-3-line', label: _t('另存为…', 'Save As…'), onClick: () => ERD.io.saveProjectFileAs() },
+      '-',
+      { icon: 'ri-upload-2-line', label: _t('导入 SQL / JSON…', 'Import SQL / JSON…'), onClick: dlgImport },
+      '-',
+      { icon: 'ri-link', label: _t('复制分享链接（含完整表结构）', 'Copy Share Link (contains full schema)'), onClick: () => {
+          confirmDlg(_t('分享链接将包含完整表结构，请勿公开分享含敏感信息的内容。确认复制？', 'The share link contains the full schema. Do NOT share sensitive content publicly. Copy now?'), () => ERD.io.copyShareLink(), _t('复制', 'Copy'));
+        } },
+      '-',
+      { icon: 'ri-braces-line', label: _t('类型库管理…', 'Type Library…'), onClick: dlgTypes }
+    ]);
+
+    /* 工具：连线模式 / 业务域 / 折叠 / 语言 */
+    attachMenu($('btn-tools'), () => {
+      const items = [
+        { title: _t('画布工具', 'Canvas Tools') },
+        { icon: 'ri-links-line', label: _t('连线模式（创建外键）…', 'Connect Mode (create FK)…'), onClick: () => ERD.interact.setConnectMode(!ERD.view.connectMode) },
+        { icon: 'ri-stack-line', label: _t('业务域管理…', 'Business Zones…'), onClick: dlgZones },
+        '-',
+        { icon: 'ri-eye-line', label: (ERD.view.showLogical ? _t('隐藏', 'Hide') : _t('显示', 'Show')) + _t('逻辑关联', ' Logical Relations'), onClick: () => { document.getElementById('btn-logical').click(); } },
+        { icon: 'ri-layout-grid-line', label: _t('自动布局', 'Auto Layout'), onClick: autoLayout },
+        '-',
+        { icon: 'ri-folder-line', label: _t('折叠全部表', 'Fold All Tables'), onClick: () => ERD.store.foldAll(true) },
+        { icon: 'ri-folder-open-line', label: _t('展开全部表', 'Expand All Tables'), onClick: () => ERD.store.foldAll(false) },
+        '-',
+        { title: _t('语言', 'Language') },
+        ...ERD.i18n.LANGS.map(l => ({
+          icon: 'ri-translate-2',
+          label: l.label,
+          right: (ERD.i18n.get() === l.key ? '<i class="ri-check-line" style="color:var(--green)"></i>' : ''),
+          onClick: () => { if (ERD.i18n.get() !== l.key) ERD.i18n.set(l.key); }
+        }))
+      ];
+      return items;
+    });
+
     $('btn-undo').onclick = () => ERD.store.undo();
     $('btn-redo').onclick = () => ERD.store.redo();
-    $('btn-import').onclick = dlgImport;
     attachMenu($('btn-export'), [
-      { icon: 'ri-database-2-line', label: '工程 JSON（.json）', onClick: () => ERD.io.exportJSON() },
+      { icon: 'ri-database-2-line', label: _t('工程 JSON（.json）', 'Project JSON (.json)'), onClick: () => ERD.io.exportJSON() },
       '-',
-      { title: 'SQL 脚本（8 种方言）' },
+      { title: _t('SQL 脚本（8 种方言）', 'SQL Script (8 dialects)') },
       ...Object.keys(ERD.sql.DIALECTS).map(k => ({
         icon: 'ri-file-code-line',
         label: ERD.sql.DIALECTS[k].label,
         onClick: () => ERD.io.exportSQL(k)
       })),
       '-',
-      { icon: 'ri-image-line', label: 'PNG 图片（.png）', onClick: () => ERD.io.exportPNG() },
-      { icon: 'ri-shape-line', label: 'SVG 矢量图（.svg）', onClick: () => ERD.io.exportSVG() },
+      { icon: 'ri-image-line', label: _t('PNG 图片（.png）', 'PNG Image (.png)'), onClick: () => ERD.io.exportPNG() },
+      { icon: 'ri-shape-line', label: _t('SVG 矢量图（.svg）', 'SVG Vector (.svg)'), onClick: () => ERD.io.exportSVG() },
       '-',
-      { icon: 'ri-git-branch-line', label: 'Mermaid ER（.mmd）', onClick: () => ERD.io.exportMermaid() },
-      { icon: 'ri-file-excel-2-line', label: '数据字典 Excel（.xlsx）', onClick: () => ERD.io.exportXLSX() }
+      { icon: 'ri-git-branch-line', label: _t('Mermaid ER（.mmd）', 'Mermaid ER (.mmd)'), onClick: () => ERD.io.exportMermaid() },
+      { icon: 'ri-file-excel-2-line', label: _t('数据字典 Excel（.xlsx）', 'Data Dictionary Excel (.xlsx)'), onClick: () => ERD.io.exportXLSX() }
     ]);
     $('btn-help').onclick = dlgHelp;
   }
@@ -232,7 +269,7 @@ ERD.editor = (function () {
     ERD.bus.on('saved', () => {
       const el = document.getElementById('save-state');
       el.className = 'saved';
-      el.innerHTML = '<i class="ri-checkbox-circle-line"></i>已自动保存 ' + new Date().toLocaleTimeString('zh-CN', { hour12: false });
+      el.innerHTML = '<i class="ri-checkbox-circle-line"></i>' + _t('已自动保存 ', 'Saved at ') + new Date().toLocaleTimeString('zh-CN', { hour12: false });
     });
     ERD.bus.on('select', renderDock);
   }
@@ -268,7 +305,7 @@ ERD.editor = (function () {
     const t = ERD.store.tableByKey(key);
     if (!t) { closeDock(); return; }
     const p = ERD.store.state.p;
-    const zc = (p.zones.find(z => z.key === t.zone) || {}).color || '#8b93a3';
+    const zc = ERD.safeColor((p.zones.find(z => z.key === t.zone) || {}).color || '#8b93a3');
     const zoneOpts = '<option value="">未分组</option>' + p.zones.map(z =>
       '<option value="' + z.key + '"' + (z.key === t.zone ? ' selected' : '') + '>' + ERD.esc(z.name) + '</option>').join('');
 
@@ -291,7 +328,8 @@ ERD.editor = (function () {
     let colRows = '';
     t.cols.forEach((c, i) => {
       if (c[2] === 'g') {
-        colRows += '<div class="col-row g-row" data-i="' + i + '">' +
+        colRows += '<div class="col-row g-row" data-i="' + i + '" draggable="true">' +
+          '<div class="col-cell drag-grip" title="拖拽排序"><i class="ri-drag-move-2-line"></i></div>' +
           '<div class="col-cell"><input class="g-in" data-f="1" value="' + ERD.esc(c[1]) + '" placeholder="分组标题"></div>' +
           '<div class="col-cell"><span class="g-badge">分组分隔行</span>' +
           '<button class="mini" data-act="up" title="上移"><i class="ri-arrow-up-line"></i></button>' +
@@ -303,7 +341,8 @@ ERD.editor = (function () {
         const nnChk = c[2] === 'pk'
           ? '<input type="checkbox" class="nn" checked disabled title="主键隐含非空">'
           : '<input type="checkbox" class="nn" data-f="4" title="非空 NOT NULL"' + (c[4] ? ' checked' : '') + '>';
-        colRows += '<div class="col-row" data-i="' + i + '">' +
+        colRows += '<div class="col-row" data-i="' + i + '" draggable="true">' +
+          '<div class="col-cell drag-grip" title="拖拽排序"><i class="ri-drag-move-2-line"></i></div>' +
           '<div class="col-cell"><input class="cname" data-f="0" value="' + ERD.esc(c[0]) + '"></div>' +
           '<div class="col-cell"><input class="ctype" data-f="1" list="dl-types" value="' + ERD.esc(c[1]) + '"></div>' +
           '<div class="col-cell"><select class="flag" data-f="2">' + flagSel + '</select></div>' +
@@ -331,7 +370,7 @@ ERD.editor = (function () {
       '<div class="quick-fields" id="dk-quick"><span class="qf-title">常用</span>' +
       ERD.presets.QUICK_FIELDS.map((f, i) => '<button class="qf" data-q="' + i + '" title="' + ERD.esc(f.name) + ' ' + ERD.esc(f.type) + (f.cmt ? ' · ' + ERD.esc(f.cmt) : '') + '">' + ERD.esc(f.cmt || f.name) + '</button>').join('') +
       '</div>' +
-      '<div class="col-tbl"><div class="col-row head"><div>字段名</div><div>类型</div><div>标记</div><div style="text-align:center" title="非空 NOT NULL">非空</div><div>说明</div><div style="text-align:right">操作</div></div>' + colRows + '</div>' +
+      '<div class="col-tbl"><div class="col-row head"><div class="drag-grip"></div><div>字段名</div><div>类型</div><div>标记</div><div style="text-align:center" title="非空 NOT NULL">非空</div><div>说明</div><div style="text-align:right">操作</div></div>' + colRows + '</div>' +
       '<div class="g-tip">标记可选 PK 主键 / FK 外键 / UK 唯一 / IDX 索引；✱ 非空 = NOT NULL（主键隐含）；FK 标记由「关系」自动维护<br>回车 = 下方插入新行 · 粘贴多行文本可批量建字段（如 name varchar(50) 名称）</div></div>' +
 
       '<div class="dock-sec"><h4>关系（' + rels.length + '）</h4>' + (relHtml || '<div class="g-tip">暂无关系，可用顶部「连线」按钮创建</div>') + '</div>' +
@@ -408,6 +447,46 @@ ERD.editor = (function () {
       ERD.store.setColumns(t.key, cols, '调整字段');
       renderDock();
     });
+
+    /* 字段拖拽排序（仅抓手触发，避免与输入交互冲突） */
+    let dragFrom = -1;
+    const clearDragState = () => {
+      dragFrom = -1;
+      dockBody.querySelectorAll('.col-row').forEach(r => r.classList.remove('dragging', 'drop-target'));
+    };
+    tblEl.addEventListener('dragstart', e => {
+      const row = e.target.closest('.col-row');
+      if (!row || row.classList.contains('head') || !e.target.closest('.drag-grip')) { e.preventDefault(); return; }
+      dragFrom = +row.dataset.i;
+      row.classList.add('dragging');
+      try { e.dataTransfer.effectAllowed = 'move'; e.dataTransfer.setData('text/plain', String(dragFrom)); } catch (err) { /* ignore */ }
+    });
+    tblEl.addEventListener('dragover', e => {
+      const row = e.target.closest('.col-row');
+      if (!row || row.classList.contains('head') || dragFrom < 0) return;
+      e.preventDefault();
+      e.dataTransfer.dropEffect = 'move';
+      row.classList.add('drop-target');
+    });
+    tblEl.addEventListener('dragleave', e => {
+      const row = e.target.closest('.col-row');
+      if (row) row.classList.remove('drop-target');
+    });
+    tblEl.addEventListener('drop', e => {
+      const row = e.target.closest('.col-row');
+      if (!row || row.classList.contains('head')) return;
+      e.preventDefault();
+      const to = +row.dataset.i;
+      if (dragFrom >= 0 && to !== dragFrom) {
+        const cols = t.cols.map(c => c.slice());
+        const moved = cols.splice(dragFrom, 1)[0];
+        cols.splice(to, 0, moved);
+        ERD.store.setColumns(t.key, cols, '拖拽调整字段');
+        renderDock();
+      }
+      clearDragState();
+    });
+    tblEl.addEventListener('dragend', clearDragState);
 
     dockBody.querySelector('#dk-addcol').onclick = () => {
       const cols = t.cols.map(c => c.slice());
@@ -658,6 +737,19 @@ ERD.editor = (function () {
     }, '删除');
   }
 
+  /* ---------- 批量删除确认 ---------- */
+  function confirmDeleteMany(keys) {
+    const n = keys.length;
+    const names = keys.slice(0, 3).map(k => {
+      const t = ERD.store.tableByKey(k);
+      return t ? ERD.esc(t.key) : ERD.esc(k);
+    }).join('、') + (n > 3 ? ' 等' : '');
+    confirmDlg('确认删除所选 <b>' + n + '</b> 张表（' + names + '）？<br>其所有关系连线将一并删除，且不可恢复。', () => {
+      ERD.store.removeTables(keys);
+      toast('已删除 ' + n + ' 张表', 'ok');
+    }, '删除');
+  }
+
   /* ================= 域管理弹窗 ================= */
   function dlgZones() {
     const p = ERD.store.state.p;
@@ -832,13 +924,80 @@ ERD.editor = (function () {
     };
   }
 
+  /* ================= 类型库管理 ================= */
+  function dlgTypes() {
+    const m = openModal('类型库管理', 'ri-braces-line',
+      '<div class="fhint" style="margin-bottom:10px">自定义类型保存在本浏览器（localStorage），会自动并入字段「类型」输入框的候选列表；内置类型不可删除。</div>' +
+      '<div class="g-tip" style="margin-bottom:8px;color:var(--dim)">内置：' + ERD.types.BUILTIN.slice(0, 10).join(' / ') + ' …（共 ' + ERD.types.BUILTIN.length + ' 种）</div>' +
+      '<div id="tp-list"></div>' +
+      '<div class="form-row" style="margin-top:12px;margin-bottom:6px;align-items:flex-end">' +
+      '<div class="fw"><label>新增自定义类型</label><input class="itxt mono" id="tp-add" placeholder="如：decimal(12,4) / inet / citext" autocomplete="off"></div>' +
+      '<button class="btn primary" id="tp-btn"><i class="ri-add-line"></i>添加</button></div>',
+      '<button class="btn" data-act="cancel">关闭</button>');
+    const q = s => m.querySelector(s);
+    function body() {
+      const extra = ERD.types.extra();
+      if (!extra.length) return '<div class="g-tip">暂无自定义类型</div>';
+      return extra.map(t => '<div class="zone-row" data-t="' + ERD.esc(t) + '">' +
+        '<code style="flex:1;font-size:12px">' + ERD.esc(t) + '</code>' +
+        '<button class="btn sm danger" data-act="del"><i class="ri-delete-bin-line"></i></button></div>').join('');
+    }
+    function refresh() { q('#tp-list').innerHTML = body(); rebind(); }
+    function rebind() {
+      q('#tp-list').querySelectorAll('[data-act=del]').forEach(b => {
+        b.onclick = () => {
+          const t = b.closest('[data-t]').dataset.t;
+          ERD.types.remove(t);
+          refresh(); toast('已删除类型 ' + t, 'ok');
+        };
+      });
+    }
+    function addOne() {
+      const v = q('#tp-add').value.trim();
+      if (!v) { toast('请输入类型名', 'warn'); return; }
+      if (!ERD.types.add(v)) { toast('类型已存在或为空', 'warn'); return; }
+      q('#tp-add').value = '';
+      refresh(); toast('已添加类型 ' + v, 'ok');
+    }
+    q('[data-act=cancel]').onclick = closeModal;
+    q('#tp-btn').onclick = addOne;
+    q('#tp-add').addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); addOne(); } });
+    refresh();
+    setTimeout(() => q('#tp-add').focus(), 50);
+  }
+
+  /* ================= 分享链接内容打开方式 ================= */
+  function dlgShareOpen(parsed) {
+    const tb = parsed.kind === 'project' ? parsed.project.tables.length : parsed.tables.length;
+    const rl = parsed.kind === 'project' ? parsed.project.relations.length : parsed.relations.length;
+    const name = parsed.kind === 'project' ? (parsed.project.name || '') : 'SQL 结构';
+    const m = openModal('打开分享内容', 'ri-link',
+      '<div class="confirm-msg">识别到来自链接的工程内容：<b>' + ERD.esc(name) + '</b>（' + tb + ' 表 / ' + rl + ' 关系）。<br>请选择打开方式：</div>',
+      '<button class="btn" data-act="cancel">取消</button>' +
+      '<button class="btn" data-act="merge"><i class="ri-merge-cells-horizontal"></i>合并到当前工程</button>' +
+      '<button class="btn primary" data-act="new"><i class="ri-file-add-line"></i>作为新工程打开</button>');
+    const q = s => m.querySelector(s);
+    const open = mode => {
+      ERD.io.importData(parsed, mode);
+      closeModal();
+      ERD.render.renderAll(); ERD.render.fit();
+      toast(mode === 'new' ? '已作为新工程打开分享内容' : '已合并分享内容到当前工程', 'ok');
+    };
+    q('[data-act=cancel]').onclick = closeModal;
+    q('[data-act=new]').onclick = () => open('new');
+    q('[data-act=merge]').onclick = () => open('merge');
+  }
+
   /* ================= 帮助 ================= */
   function dlgHelp() {
     openModal('使用帮助与关于', 'ri-question-line',
       '<div class="dock-sec"><h4>画布操作</h4><div class="g-tip" style="line-height:2.2">' +
       '· 拖拽空白处平移，滚轮缩放，F 键适配窗口<br>' +
       '· 点击表卡片：聚焦该表关系；双击表折叠/展开<br>' +
+      '· <b>Ctrl/Cmd+点击</b>多选表，<b>Shift+拖拽空白</b>框选；多选后可整体拖动<br>' +
+      '· 多选后右键：折叠/展开、<b>对齐与等距分布</b>、移动到域、批量删除<br>' +
       '· <b>双击空白处：快速新建表</b>；拖动表卡片调整布局（4px 网格对齐）<br>' +
+      '· 左下角<b>迷你地图</b>：点击/拖动跳转视图<br>' +
       '· <b>右键</b>：画布/表/字段/连线均有上下文菜单<br>' +
       '· 点击连线：选中并编辑关系；Delete 删除所选表/关系</div></div>' +
       '<div class="dock-sec"><h4>快速建表建字段</h4><div class="g-tip" style="line-height:2.2">' +
@@ -854,6 +1013,11 @@ ERD.editor = (function () {
       '纯前端应用，无后端。所有数据自动保存在<b>浏览器本地（localStorage）</b>，仅限当前浏览器。<br>' +
       '重要工程请定期通过「导出 → 工程 JSON」备份；换电脑 / 换浏览器时导入即可恢复。<br>' +
       '「导出 → SQL」支持 8 种数据库方言：PostgreSQL / MySQL / MariaDB / SQLite / SQL Server / Oracle / 达梦 DM / 人大金仓 KingbaseES。</div></div>' +
+      '<div class="dock-sec"><h4>本地文件 / 分享 / PWA</h4><div class="g-tip" style="line-height:2.2">' +
+      '· 「文件」菜单：打开/保存本地 <b>.erd / .json</b> 文件（Ctrl+S 同步保存到文件）；<br>' +
+      '· 「复制分享链接」：把当前工程编码进 URL，分享后打开链接即可载入（链接较长时建议改用 JSON）；<br>' +
+      '· 支持<b>安装为 PWA</b>：通过 HTTPS / localhost 访问时可用浏览器「安装应用」，离线也可使用。<br>' +
+      '· 「工具」菜单可切换界面语言：简体中文 / English。</div></div>' +
       '<div class="dock-sec"><h4>关于</h4><div class="g-tip" style="line-height:2.2">' +
       'Aneiang ERD Studio · 数据库 ER 图在线设计平台（开源，MIT License）<br>' +
       '图标：Remix Icon（Apache-2.0，本地内置）；支持离线 / 内网 / 容器化部署。<br>' +
@@ -886,5 +1050,5 @@ ERD.editor = (function () {
     toast('已按业务域自动排列', 'ok');
   }
 
-  return { init, toast, confirm: confirmDlg, confirmDeleteTable, openRelationDialog, renderDock, autoLayout, dlgImport, loadSample, dlgNewTable, focusTable };
+  return { init, toast, confirm: confirmDlg, confirmDeleteTable, confirmDeleteMany, openRelationDialog, renderDock, autoLayout, dlgImport, loadSample, dlgNewTable, focusTable, dlgTypes, dlgShareOpen };
 })();

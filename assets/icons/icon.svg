@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <defs>
+    <linearGradient id="g" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#24365c"/>
+      <stop offset="1" stop-color="#0e1420"/>
+    </linearGradient>
+  </defs>
+  <rect width="512" height="512" rx="112" fill="url(#g)"/>
+  <!-- 数据库圆柱 -->
+  <ellipse cx="256" cy="150" rx="120" ry="46" fill="none" stroke="#7aa2f7" stroke-width="26"/>
+  <path d="M136 150 v150 a120 46 0 0 0 240 0 v-150" fill="none" stroke="#7aa2f7" stroke-width="26"/>
+  <ellipse cx="256" cy="150" rx="120" ry="46" fill="#7aa2f7" opacity=".16"/>
+  <!-- 关系连线 -->
+  <path d="M256 196 v112" stroke="#4b5568" stroke-width="14"/>
+  <!-- 表卡片 -->
+  <rect x="140" y="352" width="232" height="70" rx="16" fill="#161a22" stroke="#3a5a9e" stroke-width="10"/>
+  <rect x="140" y="352" width="232" height="20" rx="10" fill="#7dcfff" opacity=".5"/>
+  <circle cx="246" cy="398" r="11" fill="#e0af68"/>
+  <circle cx="296" cy="398" r="11" fill="#73daca"/>
+</svg>

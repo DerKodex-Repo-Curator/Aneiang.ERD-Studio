@@ -1,16 +1,20 @@
 {
   "name": "build",
   "version": "1.0.0",
-  "description": "",
+  "description": "构建 / 校验 / Lint 工具集（可选安装）",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "build": "node build.js && node verify.js",
+    "test": "node ../test/smoke.test.js",
+    "check": "node --check ../assets/js/store.js && node --check ../assets/js/sql.js && node --check ../assets/js/io.js && node --check ../assets/js/sample.js && node --check ../assets/js/presets.js && node --check ../assets/js/render.js && node --check ../assets/js/interact.js && node --check ../assets/js/editor.js && node --check ../assets/js/ctxmenu.js && node --check ../assets/js/app.js",
+    "lint": "eslint ../assets/js --ext .js"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "devDependencies": {
     "clean-css": "^5.3.3",
+    "eslint": "^8.57.0",
     "html-minifier-terser": "^7.2.0",
     "javascript-obfuscator": "^5.5.0"
   }

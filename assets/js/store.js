@@ -17,12 +17,12 @@ ERD.tableH = function (t) {
   if (!t || t.fold) return ERD.HEAD_H;   // 折叠后仅剩两行表头
   return ERD.HEAD_H + (t.cols ? t.cols.length : 0) * ERD.ROW_H;
 };
-/* 字段锚点：返回 {y}；折叠或未命中时 y 取卡片中部 */
+/* 字段锚点：返回 {x, y}；折叠或未命中时取卡片中部 */
 ERD.colPos = function (t, colName) {
   let idx = -1;
   if (t && t.cols) t.cols.forEach((c, i) => { if (c[0] === colName && idx < 0) idx = i; });
-  if (!t || idx < 0 || t.fold) return { y: t ? t.y + ERD.tableH(t) / 2 : 0 };
-  return { y: t.y + ERD.HEAD_H + idx * ERD.ROW_H + ERD.ROW_H / 2 };
+  if (!t || idx < 0 || t.fold) return { x: t ? t.x + ERD.cardW(t) / 2 : 0, y: t ? t.y + ERD.tableH(t) / 2 : 0 };
+  return { x: t.x + ERD.CARD_W / 2, y: t.y + ERD.HEAD_H + idx * ERD.ROW_H + ERD.ROW_H / 2 };
 };
 
 /* ---------- 工具 ---------- */
@@ -32,6 +32,13 @@ ERD.uid = (function () {
 })();
 ERD.esc = function (s) {
   return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+};
+/* 颜色值校验：仅接受 hex / rgb() / hsl() 形式，防止注入内联样式 */
+ERD.safeColor = function (c) {
+  const s = String(c == null ? '' : c).trim();
+  if (/^#[0-9a-fA-F]{3,8}$/.test(s)) return s;
+  if (/^(rgb|rgba|hsl|hsla)\(\s*[\d\s.,%]*\)$/.test(s)) return s;
+  return '#7aa2f7';
 };
 
 /* ---------- 事件总线 ---------- */
@@ -68,6 +75,82 @@ ERD.ui = (function () {
   };
 })();
 
+/* ---------- 类型注册表（内置 + 自定义，localStorage 持久化） ---------- */
+ERD.types = (function () {
+  const KEY = 'erd.types.v1';
+  const BUILTIN = ['bigint', 'bigserial', 'serial', 'int', 'smallint', 'numeric(5,2)', 'numeric(10,2)', 'numeric(18,2)',
+    'varchar(20)', 'varchar(40)', 'varchar(50)', 'varchar(100)', 'varchar(200)', 'varchar(500)', 'char(10)', 'text',
+    'bool', 'boolean', 'date', 'time', 'timestamptz', 'timestamp', 'jsonb', 'json', 'uuid',
+    'varchar[]', 'int[]', 'bigint[]', 'text[]'];
+  let extra = [];
+  try {
+    const v = JSON.parse(localStorage.getItem(KEY) || '[]');
+    if (Array.isArray(v)) extra = v.filter(x => typeof x === 'string' && x.trim());
+  } catch (e) { /* ignore */ }
+  function save() { try { localStorage.setItem(KEY, JSON.stringify(extra)); } catch (e) { /* ignore */ } }
+  function list() { return BUILTIN.concat(extra); }
+  function syncDatalist() {
+    const dl = document.getElementById('dl-types');
+    if (dl) dl.innerHTML = list().map(t => '<option value="' + ERD.esc(t) + '"></option>').join('');
+  }
+  return {
+    list,
+    extra() { return extra.slice(); },
+    add(t) {
+      const s = String(t || '').trim();
+      if (!s || BUILTIN.includes(s) || extra.includes(s)) return false;
+      extra.push(s); save(); syncDatalist(); return true;
+    },
+    remove(t) {
+      const i = extra.indexOf(t);
+      if (i < 0) return false;
+      extra.splice(i, 1); save(); syncDatalist(); return true;
+    },
+    syncDatalist, BUILTIN
+  };
+})();
+
+/* ---------- 救援保险箱：IndexedDB 镜像（localStorage 丢失/溢出时的兜底） ----------
+   每次保存都会把工程快照镜像到 IndexedDB（异步、不阻塞）。
+   localStorage 被清空或写入失败时，可从 vault 恢复。Node 测试环境无 indexedDB 自动跳过。 */
+ERD.vault = (function () {
+  const DB = 'erd-vault', STORE = 'projects';
+  let db = null;
+  function open() {
+    return new Promise(resolve => {
+      if (db) return resolve(db);
+      if (!('indexedDB' in window)) return resolve(null);
+      try {
+        const req = indexedDB.open(DB, 1);
+        req.onupgradeneeded = () => { const d = req.result; if (!d.objectStoreNames.contains(STORE)) d.createObjectStore(STORE, { keyPath: 'id' }); };
+        req.onsuccess = () => { db = req.result; resolve(db); };
+        req.onerror = () => resolve(null);
+      } catch (e) { resolve(null); }
+    });
+  }
+  function put(p) {
+    open().then(d => {
+      if (!d || !p || !p.id) return;
+      try { d.transaction(STORE, 'readwrite').objectStore(STORE).put(JSON.parse(JSON.stringify(p))); } catch (e) { /* ignore */ }
+    });
+  }
+  function del(id) {
+    open().then(d => { if (!d || !id) return; try { d.transaction(STORE, 'readwrite').objectStore(STORE).delete(id); } catch (e) { /* ignore */ } });
+  }
+  function getAll() {
+    return open().then(d => new Promise(resolve => {
+      if (!d) return resolve([]);
+      try {
+        const tx = d.transaction(STORE, 'readonly');
+        const req = tx.objectStore(STORE).getAll();
+        req.onsuccess = () => resolve(req.result || []);
+        req.onerror = () => resolve([]);
+      } catch (e) { resolve([]); }
+    }));
+  }
+  return { put, del, getAll };
+})();
+
 /* ---------- 连线路径生成（曲线 / 直角折线 / 直线，渲染与导出共用） ---------- */
 ERD.edgePath = function (from, to, style) {
   if (from.self) {
@@ -94,6 +177,7 @@ ERD.view = {
   connectMode: false,   // 连线模式
   connectFrom: null,    // 连线起点表 key
   sel: null,            // {type:'table'|'relation', id}
+  selKeys: [],          // 多选表 key 集合（Ctrl/Cmd 点击累积）
   focusKey: null,       // 关系聚焦表 key
   filter: ''            // 搜索词
 };
@@ -105,6 +189,15 @@ ERD.store = (function () {
   const MANIFEST_KEY = 'erd.manifest.v1';
   const PROJ_PREFIX = 'erd.project.';
   const HISTORY_MAX = 60;
+  const SCHEMA_VERSION = 1;   // 工程数据格式版本（升级结构时递增并补充 migrate 步骤）
+
+  /* 工程数据迁移：未来 schemaVersion 递增时在此按版本逐步升级 */
+  function migrate(p) {
+    const cur = p;
+    /* 示例：if ((cur.schemaVersion || 1) < 2) { cur = mig_v1_to_v2(cur); } */
+    if (cur.schemaVersion !== SCHEMA_VERSION) cur.schemaVersion = SCHEMA_VERSION;
+    return cur;
+  }
 
   const state = {
     manifest: { projects: [], activeId: null },
@@ -133,7 +226,7 @@ ERD.store = (function () {
     const now = new Date().toISOString();
     return {
       id: ERD.uid('p'), name: name || '未命名工程', description: desc || '',
-      dbType: 'postgresql', createdAt: now, updatedAt: now,
+      dbType: 'postgresql', schemaVersion: SCHEMA_VERSION, createdAt: now, updatedAt: now,
       zones: [
         { key: 'z_core', name: '核心域', color: '#7dcfff' },
         { key: 'z_ext', name: '扩展域', color: '#bb9af7' }
@@ -181,11 +274,19 @@ ERD.store = (function () {
   }
 
   /* ---------- 持久化 ---------- */
+  function byteSize(s) { try { return new Blob([s]).size; } catch (e) { return (s || '').length; } }
+  const QUOTA_WARN = 3.5 * 1024 * 1024;   // 接近 localStorage 上限时预警
+
   function persist(immediate) {
     if (!state.p) return;
     clearTimeout(state._persistTimer);
     const doSave = () => {
       state.p.updatedAt = new Date().toISOString();
+      /* 大工程预警：接近 localStorage 配额时提醒定期备份 */
+      const size = byteSize(JSON.stringify(state.p));
+      if (size > QUOTA_WARN) {
+        busStatus('工程约 ' + (size / 1048576).toFixed(1) + ' MB，接近浏览器存储上限，请定期「导出 → 工程 JSON」备份', 'warn');
+      }
       if (lsSet(PROJ_PREFIX + state.p.id, state.p)) {
         const m = state.manifest.projects.find(x => x.id === state.p.id);
         if (m) {
@@ -195,10 +296,41 @@ ERD.store = (function () {
         lsSet(MANIFEST_KEY, state.manifest);
         state.savedAt = new Date();
         ERD.bus.emit('saved');
+      } else {
+        /* localStorage 写入失败（配额/隐私模式）：提示 + 自动导出备份兜底 */
+        ERD.vault.put(state.p);
+        busStatus('本地存储写入失败，已尝试写入救援存储，并自动导出 JSON 备份', 'err');
+        try { if (ERD.io && ERD.io.exportJSON) ERD.io.exportJSON(); } catch (e) { /* ignore */ }
       }
+      /* 每次保存都镜像到 IndexedDB 救援保险箱（异步不阻塞） */
+      ERD.vault.put(state.p);
     };
     if (immediate) doSave();
     else state._persistTimer = setTimeout(doSave, 350);
+  }
+
+  /* 启动时从救援保险箱找回 localStorage 缺失的工程 */
+  function vaultRestore() {
+    ERD.vault.getAll().then(list => {
+      if (!list || !list.length) return;
+      const manifest = lsGet(MANIFEST_KEY) || { projects: [], activeId: null };
+      const existing = new Set((manifest.projects || []).map(x => x && x.id));
+      let added = 0;
+      list.forEach(p => {
+        if (!p || !p.id || existing.has(p.id)) return;
+        if (lsSet(PROJ_PREFIX + p.id, p)) {
+          manifest.projects.push(meta(p));
+          existing.add(p.id); added++;
+        }
+      });
+      if (added) {
+        if (!manifest.activeId && manifest.projects.length) manifest.activeId = manifest.projects[0].id;
+        lsSet(MANIFEST_KEY, manifest);
+        state.manifest = manifest;
+        ERD.bus.emit('meta');
+        busStatus('已从救援存储恢复 ' + added + ' 个工程', 'ok');
+      }
+    });
   }
 
   /* ---------- 工程管理 ---------- */
@@ -226,6 +358,7 @@ ERD.store = (function () {
           sp.name = sp.name || '示例工程';
           if (sp.description == null) sp.description = '';
           sp.dbType = sp.dbType || 'postgresql';
+          sp.schemaVersion = SCHEMA_VERSION;
           sp.createdAt = sp.createdAt || now;
           sp.updatedAt = now;
           lsSet(PROJ_PREFIX + sp.id, sp);
@@ -248,13 +381,14 @@ ERD.store = (function () {
   function list() { return state.manifest.projects.slice().sort((a, b) => (b.updatedAt || '').localeCompare(a.updatedAt || '')); }
 
   function open(id, silent) {
-    const p = lsGet(PROJ_PREFIX + id);
+    let p = lsGet(PROJ_PREFIX + id);
     if (!p) { busStatus('工程数据不存在或已损坏', 'err'); return false; }
+    p = migrate(p);
     state.p = p;
     state.undoStack = []; state.redoStack = [];
     state.manifest.activeId = id;
     lsSet(MANIFEST_KEY, state.manifest);
-    ERD.view.sel = null; ERD.view.filter = '';
+    ERD.view.sel = null; ERD.view.selKeys = []; ERD.view.filter = '';
     if (!silent) persist(true);
     ERD.bus.emit('dirty', 'all');
     ERD.bus.emit('meta');
@@ -271,6 +405,7 @@ ERD.store = (function () {
     state.manifest.activeId = p.id;
     lsSet(MANIFEST_KEY, state.manifest);
     state.p = p; state.undoStack = []; state.redoStack = [];
+    ERD.view.sel = null; ERD.view.selKeys = [];
     ERD.bus.emit('dirty', 'all'); ERD.bus.emit('meta');
     busStatus('已创建工程「' + p.name + '」');
     return p;
@@ -292,6 +427,7 @@ ERD.store = (function () {
   function remove(id) {
     if (state.manifest.projects.length <= 1) { busStatus('至少保留一个工程', 'warn'); return false; }
     lsDel(PROJ_PREFIX + id);
+    ERD.vault.del(id);
     state.manifest.projects = state.manifest.projects.filter(x => x.id !== id);
     if (state.manifest.activeId === id) {
       state.manifest.activeId = state.manifest.projects[0] ? state.manifest.projects[0].id : null;
@@ -402,6 +538,76 @@ ERD.store = (function () {
     if (ERD.view.sel && ERD.view.sel.type === 'table') ERD.bus.emit('select');
   }
 
+  /* ---------- 批量操作（多选） ---------- */
+  function removeTables(keys) {
+    if (!keys || !keys.length) return;
+    const set = new Set(keys);
+    pushHistory('批量删除 ' + keys.length + ' 张表');
+    state.p.tables = state.p.tables.filter(t => !set.has(t.key));
+    state.p.relations = state.p.relations.filter(r =>
+      !(r.type === 'fk' ? (set.has(r.child) || set.has(r.parent)) : (set.has(r.from) || set.has(r.to))));
+    if (ERD.view.sel && set.has(ERD.view.sel.id)) { ERD.view.sel = null; ERD.view.selKeys = []; }
+    ERD.bus.emit('select');
+    persist(); ERD.bus.emit('dirty', 'all');
+  }
+  function moveTables(keys, zone) {
+    if (!keys || !keys.length) return;
+    pushHistory('移动 ' + keys.length + ' 张表到域');
+    keys.forEach(k => { const t = tableByKey(k); if (t) t.zone = zone; });
+    persist(); ERD.bus.emit('dirty', 'all');
+  }
+  function setFoldMany(keys, fold) {
+    if (!keys || !keys.length) return;
+    keys.forEach(k => { const t = tableByKey(k); if (t) t.fold = !!fold; });
+    persist(); ERD.bus.emit('dirty', 'all');
+    if (ERD.view.sel && ERD.view.sel.type === 'table') ERD.bus.emit('select');
+  }
+
+  /* ---------- 对齐 / 分布（多选） ---------- */
+  function alignTables(keys, mode) {
+    const ts = (keys || []).map(k => tableByKey(k)).filter(Boolean);
+    if (ts.length < 2) return;
+    pushHistory('对齐表格');
+    const minX = Math.min(...ts.map(t => t.x));
+    const maxX = Math.max(...ts.map(t => t.x + ERD.cardW(t)));
+    const minY = Math.min(...ts.map(t => t.y));
+    const maxY = Math.max(...ts.map(t => t.y + ERD.tableH(t)));
+    const cx = (minX + maxX) / 2, cy = (minY + maxY) / 2;
+    ts.forEach(t => {
+      const w = ERD.cardW(t), h = ERD.tableH(t);
+      if (mode === 'left') t.x = Math.round(minX);
+      else if (mode === 'hcenter') t.x = Math.round(cx - w / 2);
+      else if (mode === 'right') t.x = Math.round(maxX - w);
+      else if (mode === 'top') t.y = Math.round(minY);
+      else if (mode === 'vcenter') t.y = Math.round(cy - h / 2);
+      else if (mode === 'bottom') t.y = Math.round(maxY - h);
+    });
+    persist(); ERD.bus.emit('dirty', 'all');
+  }
+  function distributeTables(keys, axis) {
+    const ts = (keys || []).map(k => tableByKey(k)).filter(Boolean);
+    if (ts.length < 3) return;
+    pushHistory('等距分布');
+    if (axis === 'h') {
+      const total = ts.reduce((s, t) => s + ERD.cardW(t), 0);
+      const minX = Math.min(...ts.map(t => t.x));
+      const maxX = Math.max(...ts.map(t => t.x + ERD.cardW(t)));
+      const gap = (maxX - minX - total) / (ts.length - 1);
+      ts.sort((a, b) => a.x - b.x);
+      let x = minX;
+      ts.forEach(t => { t.x = Math.round(x); x += ERD.cardW(t) + gap; });
+    } else {
+      const total = ts.reduce((s, t) => s + ERD.tableH(t), 0);
+      const minY = Math.min(...ts.map(t => t.y));
+      const maxY = Math.max(...ts.map(t => t.y + ERD.tableH(t)));
+      const gap = (maxY - minY - total) / (ts.length - 1);
+      ts.sort((a, b) => a.y - b.y);
+      let y = minY;
+      ts.forEach(t => { t.y = Math.round(y); y += ERD.tableH(t) + gap; });
+    }
+    persist(); ERD.bus.emit('dirty', 'all');
+  }
+
   /* ---------- 关系操作 ---------- */
   function syncFkFlags(t) {
     const fkCols = new Set(state.p.relations.filter(r => r.type === 'fk' && r.child === t.key).map(r => r.col));
@@ -464,13 +670,14 @@ ERD.store = (function () {
   /* ---------- 域操作 ---------- */
   function addZone(name, color) {
     pushHistory('新增域');
-    const z = { key: ERD.uid('z'), name: name || '新域', color: color || '#7aa2f7' };
+    const z = { key: ERD.uid('z'), name: name || '新域', color: ERD.safeColor(color) };
     state.p.zones.push(z);
     persist(); ERD.bus.emit('dirty', 'all');
     return z;
   }
   function updateZone(key, patch) {
     pushHistory('修改域');
+    if (patch.color !== undefined) patch.color = ERD.safeColor(patch.color);
     const z = state.p.zones.find(x => x.key === key); if (!z) return;
     Object.assign(z, patch);
     persist(); ERD.bus.emit('dirty', 'all');
@@ -500,9 +707,10 @@ ERD.store = (function () {
     state, init, list, open, create, duplicate, remove, rename,
     tableByKey, relById, zoneOf, uniqueTableKey,
     addTable, updateTable, setColumns, removeTable, moveTable, beginMove, setFold, foldAll,
+    removeTables, moveTables, setFoldMany, alignTables, distributeTables,
     addRelation, updateRelation, removeRelation,
     addZone, updateZone, removeZone,
-    pushHistory, undo, redo, stats, persist,
+    pushHistory, undo, redo, stats, persist, vaultRestore,
     canUndo: () => state.undoStack.length > 0,
     canRedo: () => state.redoStack.length > 0
   };

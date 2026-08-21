@@ -4,8 +4,9 @@
 var ERD = window.ERD = window.ERD || {};
 ERD.interact = (function () {
   let viewport, canvas, svg, searchEl;
-  let dragging = null;   // {key, moved, ox, oy}
+  let dragging = null;   // {key, moved, ox, oy} 或 {group, keys, offsets, moved}
   let panning = null;
+  let marquee = null;    // {sx, sy, ex, ey} Shift 框选
 
   function init() {
     viewport = document.getElementById('viewport');
@@ -42,17 +43,115 @@ ERD.interact = (function () {
       const key = card.dataset.key;
       const t = ERD.store.tableByKey(key);
       if (!t) return;
+      /* Ctrl/Cmd 点击 = 多选切换，不进入拖拽 */
+      if (e.ctrlKey || e.metaKey) {
+        e.preventDefault();
+        toggleMulti(key);
+        return;
+      }
       const pt = toCanvas(e.clientX, e.clientY);
-      dragging = { key, moved: false, dx: pt.x - t.x, dy: pt.y - t.y };
+      /* 点击已多选中的表 → 整组拖动 */
+      if (ERD.view.selKeys.length > 1 && ERD.view.selKeys.indexOf(key) >= 0) {
+        dragging = { group: true, keys: ERD.view.selKeys.slice(), offsets: {}, moved: false };
+        dragging.keys.forEach(k => {
+          const tt = ERD.store.tableByKey(k);
+          if (tt) dragging.offsets[k] = { dx: pt.x - tt.x, dy: pt.y - tt.y };
+        });
+      } else {
+        dragging = { group: false, key, moved: false, dx: pt.x - t.x, dy: pt.y - t.y };
+      }
       e.preventDefault();
       return;
     }
     if (e.target.closest('.edge')) return;
+    /* Shift + 空白拖拽 = 矩形框选 */
+    if (e.shiftKey) {
+      startMarquee(e.clientX, e.clientY);
+      marquee.ex = e.clientX; marquee.ey = e.clientY;
+      e.preventDefault();
+      return;
+    }
     panning = { sx: e.clientX, sy: e.clientY, ox: ERD.view.tx, oy: ERD.view.ty };
     viewport.classList.add('panning');
   }
 
+  /* ---------- 框选（Shift 拖拽） ---------- */
+  function startMarquee(cx, cy) {
+    marquee = { sx: cx, sy: cy, ex: cx, ey: cy };
+    let el = document.getElementById('marquee');
+    if (!el) {
+      el = document.createElement('div');
+      el.id = 'marquee';
+      viewport.appendChild(el);
+    }
+    el.style.display = 'block';
+    updateMarquee(cx, cy);
+  }
+  function updateMarquee(cx, cy) {
+    if (!marquee) return;
+    const el = document.getElementById('marquee'); if (!el) return;
+    const r = viewport.getBoundingClientRect();
+    const x = Math.min(marquee.sx, cx) - r.left;
+    const y = Math.min(marquee.sy, cy) - r.top;
+    el.style.left = x + 'px';
+    el.style.top = y + 'px';
+    el.style.width = Math.abs(cx - marquee.sx) + 'px';
+    el.style.height = Math.abs(cy - marquee.sy) + 'px';
+  }
+  function endMarquee() {
+    const el = document.getElementById('marquee');
+    if (el) el.style.display = 'none';
+    marquee = null;
+  }
+  function finishMarquee() {
+    if (!marquee) return;
+    const a = toCanvas(marquee.sx, marquee.sy);
+    const b = toCanvas(marquee.ex, marquee.ey);
+    const x0 = Math.min(a.x, b.x), y0 = Math.min(a.y, b.y);
+    const x1 = Math.max(a.x, b.x), y1 = Math.max(a.y, b.y);
+    const hit = [];
+    ERD.store.state.p.tables.forEach(t => {
+      const tx = t.x, ty = t.y, tw = ERD.cardW(t), th = ERD.tableH(t);
+      if (tx < x1 && tx + tw > x0 && ty < y1 && ty + th > y0) hit.push(t.key);
+    });
+    endMarquee();
+    if (!hit.length) return;
+    const merged = ERD.view.selKeys.slice();
+    hit.forEach(k => { if (merged.indexOf(k) < 0) merged.push(k); });
+    ERD.view.selKeys = merged;
+    ERD.view.sel = { type: 'table', id: hit[0] };
+    ERD.view.focusKey = hit[0];
+    ERD.render.applyFocusStyles();
+    ERD.render.applySelStyles();
+    ERD.bus.emit('select');
+  }
+
+  /* Ctrl/Cmd 点击：累积多选；主选中聚焦该表 */
+  function toggleMulti(key) {
+    const i = ERD.view.selKeys.indexOf(key);
+    if (i >= 0) ERD.view.selKeys.splice(i, 1);
+    else ERD.view.selKeys.push(key);
+    if (!ERD.view.selKeys.length) {
+      ERD.view.sel = null;
+      ERD.view.focusKey = null;
+      ERD.render.applyFocusStyles();
+      ERD.render.applySelStyles();
+      ERD.bus.emit('select');
+      return;
+    }
+    ERD.view.sel = { type: 'table', id: key };
+    ERD.view.focusKey = key;
+    ERD.render.applyFocusStyles();
+    ERD.render.applySelStyles();
+    ERD.bus.emit('select');
+  }
+
   function onMouseMove(e) {
+    if (marquee) {
+      marquee.ex = e.clientX; marquee.ey = e.clientY;
+      updateMarquee(e.clientX, e.clientY);
+      return;
+    }
     if (panning) {
       ERD.view.tx = panning.ox + e.clientX - panning.sx;
       ERD.view.ty = panning.oy + e.clientY - panning.sy;
@@ -64,25 +163,47 @@ ERD.interact = (function () {
       if (!dragging.moved) {
         dragging.moved = true;
         ERD.store.beginMove();
-        const t = ERD.store.tableByKey(dragging.key);
-        if (t && t.el) t.el.classList.add('dragging');
+        if (dragging.group) {
+          dragging.keys.forEach(k => { const tt = ERD.store.tableByKey(k); if (tt && tt.el) tt.el.classList.add('dragging'); });
+        } else {
+          const t = ERD.store.tableByKey(dragging.key);
+          if (t && t.el) t.el.classList.add('dragging');
+        }
       }
-      const nx = Math.round((pt.x - dragging.dx) / 4) * 4;
-      const ny = Math.round((pt.y - dragging.dy) / 4) * 4;
-      ERD.store.moveTable(dragging.key, nx, ny);
-      ERD.render.scheduleMove(dragging.key);
+      if (dragging.group) {
+        dragging.keys.forEach(k => {
+          const off = dragging.offsets[k]; if (!off) return;
+          const nx = Math.round((pt.x - off.dx) / 4) * 4;
+          const ny = Math.round((pt.y - off.dy) / 4) * 4;
+          ERD.store.moveTable(k, nx, ny);
+          const tt = ERD.store.tableByKey(k);
+          if (tt && tt.el) { tt.el.style.left = tt.x + 'px'; tt.el.style.top = tt.y + 'px'; }
+        });
+        ERD.render.scheduleMove(dragging.keys[0]);
+      } else {
+        const nx = Math.round((pt.x - dragging.dx) / 4) * 4;
+        const ny = Math.round((pt.y - dragging.dy) / 4) * 4;
+        ERD.store.moveTable(dragging.key, nx, ny);
+        ERD.render.scheduleMove(dragging.key);
+      }
       return;
     }
     if (ERD.view.connectMode && ERD.view.connectFrom) updateGhost(e.clientX, e.clientY);
   }
 
   function onMouseUp(e) {
+    if (marquee) { finishMarquee(); }
     if (panning) { panning = null; viewport.classList.remove('panning'); }
     if (dragging) {
       const d = dragging; dragging = null;
-      const t = ERD.store.tableByKey(d.key);
-      if (t && t.el) t.el.classList.remove('dragging');
-      if (!d.moved) onTableClick(d.key);
+      if (d.group) {
+        d.keys.forEach(k => { const t = ERD.store.tableByKey(k); if (t && t.el) t.el.classList.remove('dragging'); });
+        if (!d.moved) onTableClick(d.keys[0]);
+      } else {
+        const t = ERD.store.tableByKey(d.key);
+        if (t && t.el) t.el.classList.remove('dragging');
+        if (!d.moved) onTableClick(d.key);
+      }
     }
   }
 
@@ -107,6 +228,7 @@ ERD.interact = (function () {
   /* ---------- 点击表卡片 ---------- */
   function onTableClick(key) {
     if (ERD.view.connectMode) { onConnectClick(key); return; }
+    ERD.view.selKeys = [key];
     ERD.view.sel = { type: 'table', id: key };
     ERD.view.focusKey = key;
     ERD.render.applyFocusStyles();
@@ -125,6 +247,7 @@ ERD.interact = (function () {
 
   function clearSelection() {
     ERD.view.sel = null;
+    ERD.view.selKeys = [];
     ERD.view.focusKey = null;
     ERD.render.applyFocusStyles();
     ERD.render.applySelStyles();
@@ -162,8 +285,8 @@ ERD.interact = (function () {
     if (hint) {
       hint.className = on ? 'connect' : '';
       hint.innerHTML = on
-        ? '<i class="ri-links-line"></i>连线模式：先点击<b style="color:var(--amber)">子表</b>，再点击<b style="color:var(--amber)">父表</b>（Esc 退出）'
-        : '拖拽平移 · 滚轮缩放 · 双击空白建表 · 右键快捷菜单 · N 新建表 · 双击表折叠';
+        ? '<i class="ri-links-line"></i>' + _t('连线模式：先点击<b style="color:var(--amber)">子表</b>，再点击<b style="color:var(--amber)">父表</b>（Esc 退出）', 'Connect mode: click <b style="color:var(--amber)">child table</b> first, then <b style="color:var(--amber)">parent table</b> (Esc to exit)')
+        : _t('拖拽平移 · 滚轮缩放 · 双击空白建表 · 右键快捷菜单 · N 新建表 · 双击表折叠', 'Drag to pan · Wheel to zoom · Double-click empty canvas to add table · Right-click menu · N new table · Double-click to fold');
     }
     hideGhost();
     ERD.render.renderAll();
@@ -195,7 +318,7 @@ ERD.interact = (function () {
     const t = ERD.store.tableByKey(key);
     if (t && t.el) t.el.classList.add('connect-src');
     const hint = document.getElementById('status-hint');
-    if (hint) hint.innerHTML = '<i class="ri-links-line"></i>已选子表 <b style="color:var(--amber)">' + ERD.esc(key) + '</b>，请点击父表（Esc 取消）';
+    if (hint) hint.innerHTML = '<i class="ri-links-line"></i>' + _t('已选子表 <b style="color:var(--amber)">' + ERD.esc(key) + '</b>，请点击父表（Esc 取消）', 'Child table <b style="color:var(--amber)">' + ERD.esc(key) + '</b> selected — click parent table (Esc to cancel)');
   }
 
   function updateGhost(cx, cy) {
@@ -224,7 +347,15 @@ ERD.interact = (function () {
     if ((e.ctrlKey || e.metaKey) && !e.shiftKey && e.key.toLowerCase() === 'z' && !typing) { e.preventDefault(); ERD.store.undo(); return; }
     if ((e.ctrlKey || e.metaKey) && (e.key.toLowerCase() === 'y' || (e.shiftKey && e.key.toLowerCase() === 'z')) && !typing) { e.preventDefault(); ERD.store.redo(); return; }
     if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'f') { e.preventDefault(); searchEl.focus(); searchEl.select(); return; }
-    if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 's') { e.preventDefault(); ERD.store.persist(true); ERD.bus.emit('status', { msg: '已保存到本地', kind: 'ok' }); return; }
+    if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 's') {
+      e.preventDefault();
+      ERD.store.persist(true);
+      ERD.bus.emit('status', { msg: '已保存到本地', kind: 'ok' });
+      if (ERD.io.getFileHandle && ERD.io.getFileHandle()) {
+        ERD.io.saveProjectFile().catch(() => {});
+      }
+      return;
+    }
     if (e.key === 'Escape') {
       if (ERD.view.connectMode) { setConnectMode(false); return; }
       if (typing) { e.target.blur(); return; }
@@ -275,6 +406,7 @@ ERD.interact = (function () {
       const sel = ERD.view.sel; if (!sel) return;
       e.preventDefault();
       if (sel.type === 'relation') { ERD.store.removeRelation(sel.id); ERD.bus.emit('status', { msg: '已删除关系', kind: 'ok' }); }
+      else if (ERD.view.selKeys.length > 1) ERD.editor.confirmDeleteMany(ERD.view.selKeys.slice());
       else ERD.editor.confirmDeleteTable(sel.id);
       return;
     }

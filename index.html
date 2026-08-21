@@ -3,6 +3,10 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="theme-color" content="#0e1116">
+<meta name="description" content="Aneiang ERD Studio — 数据库 ER 图在线设计平台，纯前端、离线可用、可私有部署">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="assets/icons/icon.svg" type="image/svg+xml">
 <title>Aneiang ERD Studio · 数据库 ER 图在线设计平台</title>
 <link rel="stylesheet" href="assets/css/icons.css">
 <link rel="stylesheet" href="assets/css/base.css">
@@ -18,29 +22,25 @@
   </div>
 
   <div class="proj-wrap">
-    <select id="proj-select" title="切换工程"></select>
-    <button class="btn icon" id="btn-proj-menu" data-menu title="工程管理"><i class="ri-arrow-down-s-line"></i></button>
+    <select id="proj-select" title="切换工程" data-i18n data-i18n-attr="title" data-i18n-zh="切换工程" data-i18n-en="Switch project"></select>
+    <button class="btn icon" id="btn-proj-menu" data-menu data-i18n data-i18n-attr="title" data-i18n-zh="工程管理" data-i18n-en="Project" ><i class="ri-arrow-down-s-line"></i></button>
   </div>
 
   <span class="hsep"></span>
 
-  <button class="btn" id="btn-newtable" title="新建表"><i class="ri-table-line"></i>新建表</button>
-  <button class="btn" id="btn-connect" title="创建关系：点击子表再点击父表"><i class="ri-links-line"></i>连线</button>
-  <button class="btn" id="btn-zones" title="业务域管理"><i class="ri-stack-line"></i>业务域</button>
-
-  <span class="hsep"></span>
-
-  <button class="btn icon" id="btn-undo" title="撤销（Ctrl+Z）" disabled><i class="ri-arrow-go-back-line"></i></button>
-  <button class="btn icon" id="btn-redo" title="重做（Ctrl+Y）" disabled><i class="ri-arrow-go-forward-line"></i></button>
+  <button class="btn" id="btn-newtable" data-i18n data-i18n-attr="title" data-i18n-zh="新建表（N）" data-i18n-en="New Table (N)"><i class="ri-table-line"></i><span class="btxt" data-i18n data-i18n-zh="新建表" data-i18n-en="New Table"></span></button>
+  <button class="btn icon" id="btn-undo" data-i18n data-i18n-attr="title" data-i18n-zh="撤销（Ctrl+Z）" data-i18n-en="Undo (Ctrl+Z)" disabled><i class="ri-arrow-go-back-line"></i></button>
+  <button class="btn icon" id="btn-redo" data-i18n data-i18n-attr="title" data-i18n-zh="重做（Ctrl+Y）" data-i18n-en="Redo (Ctrl+Y)" disabled><i class="ri-arrow-go-forward-line"></i></button>
 
   <div class="search-wrap">
     <i class="ri-search-line"></i>
-    <input id="search" placeholder="搜索表名 / 字段名…（Ctrl+F）" autocomplete="off">
+    <input id="search" data-i18n data-i18n-attr="placeholder" data-i18n-zh="搜索表 / 字段…（Ctrl+F）" data-i18n-en="Search tables / fields… (Ctrl+F)" autocomplete="off">
   </div>
 
-  <button class="btn" id="btn-import" title="导入 JSON / SQL"><i class="ri-upload-2-line"></i>导入</button>
-  <button class="btn" id="btn-export" data-menu title="导出"><i class="ri-download-2-line"></i>导出<i class="ri-arrow-down-s-line"></i></button>
-  <button class="btn icon" id="btn-help" title="帮助"><i class="ri-question-line"></i></button>
+  <button class="btn" id="btn-file" data-menu data-i18n data-i18n-attr="title" data-i18n-zh="文件：打开/保存本地文件、导入、分享链接、类型库" data-i18n-en="File: open/save, import, share, types"><i class="ri-folder-2-line"></i><span class="btxt" data-i18n data-i18n-zh="文件" data-i18n-en="File"></span><i class="ri-arrow-down-s-line"></i></button>
+  <button class="btn" id="btn-export" data-menu data-i18n data-i18n-attr="title" data-i18n-zh="导出" data-i18n-en="Export"><i class="ri-download-2-line"></i><span class="btxt" data-i18n data-i18n-zh="导出" data-i18n-en="Export"></span><i class="ri-arrow-down-s-line"></i></button>
+  <button class="btn" id="btn-tools" data-menu data-i18n data-i18n-attr="title" data-i18n-zh="工具：连线模式 / 业务域 / 折叠" data-i18n-en="Tools: connect / zones / fold"><i class="ri-tools-line"></i><span class="btxt" data-i18n data-i18n-zh="工具" data-i18n-en="Tools"></span><i class="ri-arrow-down-s-line"></i></button>
+  <button class="btn icon" id="btn-help" data-i18n data-i18n-attr="title" data-i18n-zh="帮助" data-i18n-en="Help"><i class="ri-question-line"></i></button>
 </header>
 
 <!-- ============ 画布 ============ -->
@@ -48,27 +48,28 @@
   <div id="canvas">
     <svg id="edges"></svg>
   </div>
+  <div id="minimap" title="迷你地图：点击/拖动跳转视图"><canvas id="mm-canvas" width="170" height="120"></canvas></div>
   <div id="empty-tip" style="display:none;position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);flex-direction:column;gap:14px;align-items:center;color:var(--dim);z-index:10">
     <i class="ri-database-2-line" style="font-size:44px;color:var(--line2)"></i>
-    <div style="font-size:14px;letter-spacing:1px">画布还是空的，双击此处或按 N 开始设计</div>
+    <div style="font-size:14px;letter-spacing:1px" data-i18n data-i18n-zh="画布还是空的，双击此处或按 N 开始设计" data-i18n-en="Canvas is empty — double-click here or press N to start"></div>
     <div style="display:flex;gap:10px">
-      <button class="btn" data-act="newtable"><i class="ri-table-line"></i>新建表（模板）</button>
-      <button class="btn" data-act="import"><i class="ri-upload-2-line"></i>导入 SQL / JSON</button>
-      <button class="btn" data-act="sample"><i class="ri-database-2-line"></i>载入演示示例</button>
+      <button class="btn" data-act="newtable"><i class="ri-table-line"></i><span data-i18n data-i18n-zh="新建表（模板）" data-i18n-en="New Table (template)"></span></button>
+      <button class="btn" data-act="import"><i class="ri-upload-2-line"></i><span data-i18n data-i18n-zh="导入 SQL / JSON" data-i18n-en="Import SQL / JSON"></span></button>
+      <button class="btn" data-act="sample"><i class="ri-database-2-line"></i><span data-i18n data-i18n-zh="载入演示示例" data-i18n-en="Load sample"></span></button>
     </div>
   </div>
 </div>
 
 <!-- ============ 浮动视图控制 ============ -->
 <div id="viewbar">
-  <button class="btn sm icon" id="btn-zout" title="缩小（-）"><i class="ri-subtract-line"></i></button>
+  <button class="btn sm icon" id="btn-zout" data-i18n data-i18n-attr="title" data-i18n-zh="缩小（-）" data-i18n-en="Zoom out (-)"><i class="ri-subtract-line"></i></button>
   <span class="zoom-ind" id="zoom-ind">100%</span>
-  <button class="btn sm icon" id="btn-zin" title="放大（+）"><i class="ri-add-line"></i></button>
-  <button class="btn sm icon" id="btn-fit" title="适配窗口（F）"><i class="ri-fullscreen-line"></i></button>
+  <button class="btn sm icon" id="btn-zin" data-i18n data-i18n-attr="title" data-i18n-zh="放大（+）" data-i18n-en="Zoom in (+)"><i class="ri-add-line"></i></button>
+  <button class="btn sm icon" id="btn-fit" data-i18n data-i18n-attr="title" data-i18n-zh="适配窗口（F）" data-i18n-en="Fit to window (F)"><i class="ri-fullscreen-line"></i></button>
   <span class="hsep" style="height:18px"></span>
-  <button class="btn sm icon" id="btn-theme" data-menu title="外观：界面主题 / 画布背景 / 连线样式"><i class="ri-brush-line"></i></button>
-  <button class="btn sm" id="btn-logical" title="显示/隐藏逻辑关联（虚线）"><i class="ri-eye-off-line"></i>逻辑关联</button>
-  <button class="btn sm" id="btn-layout" title="按业务域自动排列"><i class="ri-layout-grid-line"></i>自动布局</button>
+  <button class="btn sm icon" id="btn-theme" data-menu data-i18n data-i18n-attr="title" data-i18n-zh="外观：界面主题 / 画布背景 / 连线样式" data-i18n-en="Appearance: theme / background / edge style"><i class="ri-brush-line"></i></button>
+  <button class="btn sm" id="btn-logical" data-i18n data-i18n-attr="title" data-i18n-zh="显示/隐藏逻辑关联（虚线）" data-i18n-en="Toggle logical relations (dashed)"><i class="ri-eye-off-line"></i><span data-i18n data-i18n-zh="逻辑关联" data-i18n-en="Logical"></span></button>
+  <button class="btn sm" id="btn-layout" data-i18n data-i18n-attr="title" data-i18n-zh="按业务域自动排列" data-i18n-en="Auto layout by zone"><i class="ri-layout-grid-line"></i><span data-i18n data-i18n-zh="自动布局" data-i18n-en="Layout"></span></button>
 </div>
 
 <!-- ============ 图例 ============ -->
@@ -86,13 +87,13 @@
 
 <!-- ============ 底部状态栏 ============ -->
 <div id="statusbar">
-  <span class="chip">工程 <b id="st-proj">0</b></span>
-  <span class="chip">表 <b id="st-t">0</b></span>
-  <span class="chip">字段 <b id="st-c">0</b></span>
-  <span class="chip">物理外键 <b id="st-fk">0</b></span>
-  <span class="chip">逻辑关联 <b id="st-lg">0</b></span>
-  <span id="save-state" style="color:var(--dimmer)">自动保存已开启</span>
-  <span id="status-hint">拖拽平移 · 滚轮缩放 · 双击空白建表 · 右键快捷菜单 · N 新建表 · 双击表折叠</span>
+  <span class="chip"><span data-i18n data-i18n-zh="工程" data-i18n-en="Projects"></span> <b id="st-proj">0</b></span>
+  <span class="chip"><span data-i18n data-i18n-zh="表" data-i18n-en="Tables"></span> <b id="st-t">0</b></span>
+  <span class="chip"><span data-i18n data-i18n-zh="字段" data-i18n-en="Fields"></span> <b id="st-c">0</b></span>
+  <span class="chip"><span data-i18n data-i18n-zh="物理外键" data-i18n-en="FK"></span> <b id="st-fk">0</b></span>
+  <span class="chip"><span data-i18n data-i18n-zh="逻辑关联" data-i18n-en="Logical"></span> <b id="st-lg">0</b></span>
+  <span id="save-state" style="color:var(--dimmer)"><span data-i18n data-i18n-zh="自动保存已开启" data-i18n-en="Auto-save on"></span></span>
+  <span id="status-hint" data-i18n data-i18n-zh="拖拽平移 · 滚轮缩放 · 双击空白建表 · 右键快捷菜单 · N 新建表 · 双击表折叠" data-i18n-en="Drag to pan · Wheel to zoom · Double-click canvas to add · Right-click menu · N new table · Double-click to fold"></span>
 </div>
 
 <!-- ============ 弹层 ============ -->
@@ -110,6 +111,7 @@
 </datalist>
 
 <script src="assets/js/store.js"></script>
+<script src="assets/js/i18n.js"></script>
 <script src="assets/js/sql.js"></script>
 <script src="assets/js/io.js"></script>
 <script src="assets/js/sample.js"></script>

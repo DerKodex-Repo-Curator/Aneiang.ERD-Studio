@@ -6,6 +6,8 @@ LABEL org.opencontainers.image.title="Aneiang ERD Studio" \
 
 COPY nginx.conf /etc/nginx/conf.d/default.conf
 COPY index.html /usr/share/nginx/html/
+COPY manifest.webmanifest /usr/share/nginx/html/
+COPY sw.js /usr/share/nginx/html/
 COPY assets /usr/share/nginx/html/assets
 
 EXPOSE 80
