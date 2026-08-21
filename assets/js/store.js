@@ -1,0 +1,509 @@
+/* ================================================================
+   Aneiang ERD Studio · store.js
+   全局命名空间 / 事件总线 / 视图状态 / 数据模型 / localStorage 持久化 / 撤销重做
+   ================================================================ */
+var ERD = window.ERD = window.ERD || {};
+
+/* ---------- 常量 ---------- */
+ERD.CARD_W = 252;   // 表卡片宽度
+ERD.ROW_H = 16.5;   // 字段行高
+ERD.HEAD_H = 45;    // 卡片头高度（两行：表名行 + 元信息行）
+ERD.FLAGS = ['', 'pk', 'fk', 'uk', 'idx'];
+ERD.CARDS = { '1:N': '1:N', '1:1': '1:1', 'N:N': 'N:N' };
+
+/* ---------- 卡片几何（渲染 / 连线锚点 / 导出共用） ---------- */
+ERD.cardW = function () { return ERD.CARD_W; };
+ERD.tableH = function (t) {
+  if (!t || t.fold) return ERD.HEAD_H;   // 折叠后仅剩两行表头
+  return ERD.HEAD_H + (t.cols ? t.cols.length : 0) * ERD.ROW_H;
+};
+/* 字段锚点：返回 {y}；折叠或未命中时 y 取卡片中部 */
+ERD.colPos = function (t, colName) {
+  let idx = -1;
+  if (t && t.cols) t.cols.forEach((c, i) => { if (c[0] === colName && idx < 0) idx = i; });
+  if (!t || idx < 0 || t.fold) return { y: t ? t.y + ERD.tableH(t) / 2 : 0 };
+  return { y: t.y + ERD.HEAD_H + idx * ERD.ROW_H + ERD.ROW_H / 2 };
+};
+
+/* ---------- 工具 ---------- */
+ERD.uid = (function () {
+  let n = Math.floor(Math.random() * 0xffff);
+  return function (p) { n = (n + 1) & 0xffffff; return (p || '') + '_' + Date.now().toString(36) + n.toString(36); };
+})();
+ERD.esc = function (s) {
+  return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+};
+
+/* ---------- 事件总线 ---------- */
+ERD.bus = (function () {
+  const map = {};
+  return {
+    on(ev, fn) { (map[ev] = map[ev] || []).push(fn); },
+    off(ev, fn) { if (map[ev]) map[ev] = map[ev].filter(f => f !== fn); },
+    emit(ev, data) { (map[ev] || []).forEach(fn => { try { fn(data); } catch (e) { console.error('[bus:' + ev + ']', e); } }); }
+  };
+})();
+
+/* ---------- UI 偏好（主题 / 画布样式，独立于工程数据持久化） ---------- */
+ERD.ui = (function () {
+  const KEY = 'erd.ui.v1';
+  const DEF = { theme: 'dark', bgPattern: 'grid', edgeStyle: 'bezier' };
+  let s;
+  try { s = Object.assign({}, DEF, JSON.parse(localStorage.getItem(KEY) || '{}')); }
+  catch (e) { s = Object.assign({}, DEF); }
+  function save() { try { localStorage.setItem(KEY, JSON.stringify(s)); } catch (e) { /* ignore */ } }
+  function apply() {
+    if (typeof document === 'undefined') return;
+    document.body.dataset.theme = s.theme;
+    const vp = document.getElementById('viewport');
+    if (vp) {
+      vp.classList.remove('bg-grid', 'bg-dots', 'bg-none');
+      vp.classList.add('bg-' + s.bgPattern);
+    }
+  }
+  return {
+    get: k => s[k],
+    set(k, v) { s[k] = v; save(); apply(); },
+    apply
+  };
+})();
+
+/* ---------- 连线路径生成（曲线 / 直角折线 / 直线，渲染与导出共用） ---------- */
+ERD.edgePath = function (from, to, style) {
+  if (from.self) {
+    return 'M ' + from.x + ' ' + from.y + ' C ' + (from.x - 52) + ' ' + (from.y + 16) + ', ' + (from.x - 52) + ' ' + (to.y - 16) + ', ' + to.x + ' ' + to.y;
+  }
+  const st = style || 'bezier';
+  if (st === 'straight') return 'M ' + from.x + ' ' + from.y + ' L ' + to.x + ' ' + to.y;
+  if (st === 'ortho') {
+    if (Math.abs(to.x - from.x) >= Math.abs(to.y - from.y)) {
+      const mx = Math.round((from.x + to.x) / 2);
+      return 'M ' + from.x + ' ' + from.y + ' L ' + mx + ' ' + from.y + ' L ' + mx + ' ' + to.y + ' L ' + to.x + ' ' + to.y;
+    }
+    const my = Math.round((from.y + to.y) / 2);
+    return 'M ' + from.x + ' ' + from.y + ' L ' + from.x + ' ' + my + ' L ' + to.x + ' ' + my + ' L ' + to.x + ' ' + to.y;
+  }
+  const dx = to.x - from.x;
+  return 'M ' + from.x + ' ' + from.y + ' C ' + (from.x + dx * .45) + ' ' + from.y + ', ' + (to.x - dx * .45) + ' ' + to.y + ', ' + to.x + ' ' + to.y;
+};
+
+/* ---------- 视图 / 会话状态（不持久化到工程文件） ---------- */
+ERD.view = {
+  scale: 0.55, tx: 40, ty: 90,
+  showLogical: false,   // 是否显示逻辑关联
+  connectMode: false,   // 连线模式
+  connectFrom: null,    // 连线起点表 key
+  sel: null,            // {type:'table'|'relation', id}
+  focusKey: null,       // 关系聚焦表 key
+  filter: ''            // 搜索词
+};
+
+/* ================================================================
+   存储层
+   ================================================================ */
+ERD.store = (function () {
+  const MANIFEST_KEY = 'erd.manifest.v1';
+  const PROJ_PREFIX = 'erd.project.';
+  const HISTORY_MAX = 60;
+
+  const state = {
+    manifest: { projects: [], activeId: null },
+    p: null,             // 当前工程（活对象）
+    undoStack: [],       // [{json, label}]
+    redoStack: [],
+    savedAt: null,
+    _persistTimer: null
+  };
+
+  /* ---------- localStorage 基础 ---------- */
+  function lsGet(k) { try { return JSON.parse(localStorage.getItem(k)); } catch (e) { return null; } }
+  function lsSet(k, v) {
+    try { localStorage.setItem(k, JSON.stringify(v)); return true; }
+    catch (e) {
+      busStatus('本地存储空间不足，请导出 JSON 备份并清理旧工程', 'warn');
+      return false;
+    }
+  }
+  function lsDel(k) { try { localStorage.removeItem(k); } catch (e) { /* ignore */ } }
+
+  function busStatus(msg, kind) { ERD.bus.emit('status', { msg, kind: kind || 'info' }); }
+
+  /* ---------- 工程骨架 ---------- */
+  function blankProject(name, desc) {
+    const now = new Date().toISOString();
+    return {
+      id: ERD.uid('p'), name: name || '未命名工程', description: desc || '',
+      dbType: 'postgresql', createdAt: now, updatedAt: now,
+      zones: [
+        { key: 'z_core', name: '核心域', color: '#7dcfff' },
+        { key: 'z_ext', name: '扩展域', color: '#bb9af7' }
+      ],
+      tables: [],
+      relations: []
+    };
+  }
+
+  /* ---------- 历史记录（撤销/重做） ---------- */
+  function snapshot() {
+    const p = state.p;
+    return JSON.stringify({ zones: p.zones, tables: p.tables, relations: p.relations });
+  }
+  function pushHistory(label) {
+    if (!state.p) return;
+    state.undoStack.push({ json: snapshot(), label: label || '' });
+    if (state.undoStack.length > HISTORY_MAX) state.undoStack.shift();
+    state.redoStack.length = 0;
+    ERD.bus.emit('history');
+  }
+  function restore(json) {
+    const p = state.p;
+    const d = JSON.parse(json);
+    p.zones = d.zones; p.tables = d.tables; p.relations = d.relations;
+    ERD.view.sel = null; ERD.view.connectFrom = null;
+    persist();
+    ERD.bus.emit('dirty', 'all');
+  }
+  function undo() {
+    if (!state.undoStack.length) { busStatus('没有可撤销的操作'); return; }
+    const item = state.undoStack.pop();
+    state.redoStack.push({ json: snapshot(), label: item.label });
+    restore(item.json);
+    busStatus('已撤销：' + (item.label || '操作'));
+    ERD.bus.emit('history');
+  }
+  function redo() {
+    if (!state.redoStack.length) { busStatus('没有可重做的操作'); return; }
+    const item = state.redoStack.pop();
+    state.undoStack.push({ json: snapshot(), label: item.label });
+    restore(item.json);
+    busStatus('已重做：' + (item.label || '操作'));
+    ERD.bus.emit('history');
+  }
+
+  /* ---------- 持久化 ---------- */
+  function persist(immediate) {
+    if (!state.p) return;
+    clearTimeout(state._persistTimer);
+    const doSave = () => {
+      state.p.updatedAt = new Date().toISOString();
+      if (lsSet(PROJ_PREFIX + state.p.id, state.p)) {
+        const m = state.manifest.projects.find(x => x.id === state.p.id);
+        if (m) {
+          m.name = state.p.name; m.description = state.p.description;
+          m.updatedAt = state.p.updatedAt; m.tableCount = state.p.tables.length;
+        }
+        lsSet(MANIFEST_KEY, state.manifest);
+        state.savedAt = new Date();
+        ERD.bus.emit('saved');
+      }
+    };
+    if (immediate) doSave();
+    else state._persistTimer = setTimeout(doSave, 350);
+  }
+
+  /* ---------- 工程管理 ---------- */
+  function init(sampleFactory) {
+    state.manifest = lsGet(MANIFEST_KEY) || { projects: [], activeId: null };
+    /* 自愈：清理无 id 的坏工程项（旧版播种缺陷写入过 erd.project.undefined） */
+    if (state.manifest.projects && state.manifest.projects.some(x => !x || !x.id)) {
+      lsDel(PROJ_PREFIX + 'undefined');
+      state.manifest.projects = state.manifest.projects.filter(x => x && x.id);
+      if (!state.manifest.projects.length) state.manifest.activeId = null;
+      lsSet(MANIFEST_KEY, state.manifest);
+    }
+    if (!state.manifest.projects.length) {
+      if (typeof sampleFactory === 'function') {
+        let sp = sampleFactory();
+        if (sp) {
+          sp = JSON.parse(JSON.stringify(sp));
+          const now = new Date().toISOString();
+          sp.id = ERD.uid('p');
+          if (sp.meta) {
+            sp.name = sp.name || sp.meta.name;
+            if (sp.description == null) sp.description = sp.meta.desc || sp.meta.description || '';
+            delete sp.meta;
+          }
+          sp.name = sp.name || '示例工程';
+          if (sp.description == null) sp.description = '';
+          sp.dbType = sp.dbType || 'postgresql';
+          sp.createdAt = sp.createdAt || now;
+          sp.updatedAt = now;
+          lsSet(PROJ_PREFIX + sp.id, sp);
+          state.manifest = { projects: [meta(sp)], activeId: sp.id };
+          lsSet(MANIFEST_KEY, state.manifest);
+        }
+      }
+    }
+    if (!state.manifest.activeId && state.manifest.projects.length) {
+      state.manifest.activeId = state.manifest.projects[0].id;
+    }
+    if (state.manifest.activeId) open(state.manifest.activeId, true);
+    return state.p;
+  }
+
+  function meta(p) {
+    return { id: p.id, name: p.name, description: p.description, updatedAt: p.updatedAt, tableCount: p.tables.length };
+  }
+
+  function list() { return state.manifest.projects.slice().sort((a, b) => (b.updatedAt || '').localeCompare(a.updatedAt || '')); }
+
+  function open(id, silent) {
+    const p = lsGet(PROJ_PREFIX + id);
+    if (!p) { busStatus('工程数据不存在或已损坏', 'err'); return false; }
+    state.p = p;
+    state.undoStack = []; state.redoStack = [];
+    state.manifest.activeId = id;
+    lsSet(MANIFEST_KEY, state.manifest);
+    ERD.view.sel = null; ERD.view.filter = '';
+    if (!silent) persist(true);
+    ERD.bus.emit('dirty', 'all');
+    ERD.bus.emit('meta');
+    ERD.bus.emit('history');
+    return true;
+  }
+
+  function create(name, desc, data) {
+    const p = data || blankProject(name, desc);
+    if (data) { p.id = ERD.uid('p'); p.name = name || p.name; p.description = desc != null ? desc : p.description; }
+    p.updatedAt = new Date().toISOString();
+    lsSet(PROJ_PREFIX + p.id, p);
+    state.manifest.projects.push(meta(p));
+    state.manifest.activeId = p.id;
+    lsSet(MANIFEST_KEY, state.manifest);
+    state.p = p; state.undoStack = []; state.redoStack = [];
+    ERD.bus.emit('dirty', 'all'); ERD.bus.emit('meta');
+    busStatus('已创建工程「' + p.name + '」');
+    return p;
+  }
+
+  function duplicate(id) {
+    const src = id === (state.p && state.p.id) ? state.p : lsGet(PROJ_PREFIX + id);
+    if (!src) return null;
+    const cp = JSON.parse(JSON.stringify(src));
+    cp.id = ERD.uid('p'); cp.name = src.name + ' 副本';
+    cp.createdAt = cp.updatedAt = new Date().toISOString();
+    lsSet(PROJ_PREFIX + cp.id, cp);
+    state.manifest.projects.push(meta(cp));
+    lsSet(MANIFEST_KEY, state.manifest);
+    ERD.bus.emit('meta');
+    return cp.id;
+  }
+
+  function remove(id) {
+    if (state.manifest.projects.length <= 1) { busStatus('至少保留一个工程', 'warn'); return false; }
+    lsDel(PROJ_PREFIX + id);
+    state.manifest.projects = state.manifest.projects.filter(x => x.id !== id);
+    if (state.manifest.activeId === id) {
+      state.manifest.activeId = state.manifest.projects[0] ? state.manifest.projects[0].id : null;
+      if (state.manifest.activeId) open(state.manifest.activeId, true);
+    }
+    lsSet(MANIFEST_KEY, state.manifest);
+    ERD.bus.emit('meta');
+    return true;
+  }
+
+  function rename(id, name, desc) {
+    const p = id === (state.p && state.p.id) ? state.p : lsGet(PROJ_PREFIX + id);
+    if (!p) return;
+    p.name = name != null ? name : p.name;
+    if (desc != null) p.description = desc;
+    p.updatedAt = new Date().toISOString();
+    if (p === state.p) persist(true); else lsSet(PROJ_PREFIX + id, p);
+    const m = state.manifest.projects.find(x => x.id === id);
+    if (m) { m.name = p.name; m.updatedAt = p.updatedAt; }
+    lsSet(MANIFEST_KEY, state.manifest);
+    ERD.bus.emit('meta');
+  }
+
+  /* ---------- 数据访问 ---------- */
+  function tableByKey(k) { return state.p.tables.find(t => t.key === k); }
+  function relById(id) { return state.p.relations.find(r => r.id === id); }
+  function zoneOf(t) { return state.p.zones.find(z => z.key === (t && t.zone)) || null; }
+  function uniqueTableKey(base) {
+    let k = base || 'table', i = 1;
+    const exists = () => state.p.tables.some(t => t.key === k);
+    while (exists()) { k = base + '_' + (++i); }
+    return k;
+  }
+  function nextPos() {
+    const r = document.getElementById('viewport').getBoundingClientRect();
+    const cx = (r.width / 2 - ERD.view.tx) / ERD.view.scale - ERD.CARD_W / 2;
+    const cy = (r.height / 2 - ERD.view.ty) / ERD.view.scale - 60;
+    const n = state.p.tables.length;
+    return { x: Math.round(cx + (n % 5) * 30 - 60), y: Math.round(cy + Math.floor(n / 5) * 40 - 60) };
+  }
+
+  /* ---------- 表操作 ---------- */
+  function addTable(props) {
+    pushHistory('新增表');
+    const pos = nextPos();
+    const t = {
+      key: uniqueTableKey((props.key || props.name || 'new_table').toLowerCase().replace(/[^a-z0-9_]/g, '_')),
+      zone: props.zone || (state.p.zones[0] && state.p.zones[0].key) || '',
+      x: props.x != null ? props.x : pos.x, y: props.y != null ? props.y : pos.y,
+      cn: props.cn || '', desc: props.desc || '', core: !!props.core,
+      cols: props.cols && props.cols.length ? props.cols : [
+        ['id', 'bigint', 'pk', '主键', true],
+        ['name', 'varchar(100)', '', '名称', true]
+      ]
+    };
+    state.p.tables.push(t);
+    if (props.zone == null && !state.p.zones.some(z => z.key === t.zone)) t.zone = '';
+    persist(); ERD.bus.emit('dirty', 'all');
+    ERD.view.sel = { type: 'table', id: t.key };
+    ERD.bus.emit('select');
+    return t;
+  }
+
+  function updateTable(key, patch, label) {
+    const t = tableByKey(key); if (!t) return;
+    pushHistory(label || '修改表');
+    Object.assign(t, patch);
+    persist(); ERD.bus.emit('dirty', 'all');
+  }
+
+  function setColumns(key, cols, label) {
+    const t = tableByKey(key); if (!t) return;
+    pushHistory(label || '修改字段');
+    t.cols = cols;
+    syncFkFlags(t);
+    persist(); ERD.bus.emit('dirty', 'all');
+  }
+
+  function removeTable(key) {
+    const t = tableByKey(key); if (!t) return;
+    pushHistory('删除表 ' + t.key);
+    state.p.tables = state.p.tables.filter(x => x.key !== key);
+    state.p.relations = state.p.relations.filter(r =>
+      !(r.type === 'fk' ? (r.child === key || r.parent === key) : (r.from === key || r.to === key)));
+    if (ERD.view.sel && ERD.view.sel.id === key) { ERD.view.sel = null; ERD.bus.emit('select'); }
+    persist(); ERD.bus.emit('dirty', 'all');
+  }
+
+  /* ---------- 表移动（拖拽） ---------- */
+  function beginMove() { pushHistory('移动表'); }
+  function moveTable(key, x, y) {
+    const t = tableByKey(key); if (!t) return;
+    t.x = Math.round(x); t.y = Math.round(y);
+    ERD.bus.emit('dirty', 'move');
+    persist();
+  }
+
+  /* ---------- 折叠 / 展开（显示状态，不进撤销历史） ---------- */
+  function setFold(key, fold) {
+    const t = tableByKey(key); if (!t) return;
+    t.fold = !!fold;
+    persist(); ERD.bus.emit('dirty', 'all');
+    if (ERD.view.sel && ERD.view.sel.type === 'table' && ERD.view.sel.id === key) ERD.bus.emit('select');
+  }
+  function foldAll(fold) {
+    state.p.tables.forEach(t => { t.fold = !!fold; });
+    persist(); ERD.bus.emit('dirty', 'all');
+    if (ERD.view.sel && ERD.view.sel.type === 'table') ERD.bus.emit('select');
+  }
+
+  /* ---------- 关系操作 ---------- */
+  function syncFkFlags(t) {
+    const fkCols = new Set(state.p.relations.filter(r => r.type === 'fk' && r.child === t.key).map(r => r.col));
+    t.cols.forEach(c => { if (c[2] === 'fk' && !fkCols.has(c[0])) c[2] = ''; });
+  }
+
+  function addRelation(rel) {
+    pushHistory('新增关系');
+    const r = {
+      id: ERD.uid('r'),
+      type: rel.type || 'fk',
+      card: rel.card || '1:N'
+    };
+    if (r.type === 'fk') {
+      r.child = rel.child; r.col = rel.col || ''; r.parent = rel.parent;
+      r.parentCol = rel.parentCol || 'id'; r.card = rel.card || '1:N';
+      const ct = tableByKey(r.child);
+      if (ct) {
+        const col = ct.cols.find(c => c[0] === r.col);
+        if (col) col[2] = 'fk';
+        syncFkFlags(ct);
+      }
+    } else {
+      r.from = rel.from; r.to = rel.to; r.label = rel.label || '';
+    }
+    state.p.relations.push(r);
+    persist(); ERD.bus.emit('dirty', 'all');
+    return r;
+  }
+
+  function updateRelation(id, patch, label) {
+    const r = relById(id); if (!r) return;
+    pushHistory(label || '修改关系');
+    if (patch.col !== undefined) {
+      const ct = tableByKey(r.child);
+      if (ct) { const old = ct.cols.find(c => c[0] === r.col); if (old) old[2] = ''; }
+    }
+    Object.assign(r, patch);
+    if (r.type === 'fk') {
+      const ct = tableByKey(r.child);
+      if (ct) {
+        const col = ct.cols.find(c => c[0] === r.col);
+        if (col) col[2] = 'fk';
+        syncFkFlags(ct);
+      }
+    }
+    persist(); ERD.bus.emit('dirty', 'all');
+    ERD.bus.emit('select');
+  }
+
+  function removeRelation(id) {
+    const r = relById(id); if (!r) return;
+    pushHistory('删除关系');
+    state.p.relations = state.p.relations.filter(x => x.id !== id);
+    if (r.type === 'fk') { const ct = tableByKey(r.child); if (ct) syncFkFlags(ct); }
+    if (ERD.view.sel && ERD.view.sel.id === id) { ERD.view.sel = null; ERD.bus.emit('select'); }
+    persist(); ERD.bus.emit('dirty', 'all');
+  }
+
+  /* ---------- 域操作 ---------- */
+  function addZone(name, color) {
+    pushHistory('新增域');
+    const z = { key: ERD.uid('z'), name: name || '新域', color: color || '#7aa2f7' };
+    state.p.zones.push(z);
+    persist(); ERD.bus.emit('dirty', 'all');
+    return z;
+  }
+  function updateZone(key, patch) {
+    pushHistory('修改域');
+    const z = state.p.zones.find(x => x.key === key); if (!z) return;
+    Object.assign(z, patch);
+    persist(); ERD.bus.emit('dirty', 'all');
+  }
+  function removeZone(key) {
+    pushHistory('删除域');
+    state.p.zones = state.p.zones.filter(x => x.key !== key);
+    const fb = state.p.zones[0] ? state.p.zones[0].key : '';
+    state.p.tables.forEach(t => { if (t.zone === key) t.zone = fb; });
+    persist(); ERD.bus.emit('dirty', 'all');
+  }
+
+  /* ---------- 统计 ---------- */
+  function stats() {
+    const p = state.p; if (!p) return { tables: 0, cols: 0, fk: 0, lg: 0, zones: 0 };
+    let cols = 0;
+    p.tables.forEach(t => t.cols.forEach(c => { if (c[2] !== 'g') cols++; }));
+    return {
+      tables: p.tables.length, cols,
+      fk: p.relations.filter(r => r.type === 'fk').length,
+      lg: p.relations.filter(r => r.type === 'logical').length,
+      zones: p.zones.length
+    };
+  }
+
+  return {
+    state, init, list, open, create, duplicate, remove, rename,
+    tableByKey, relById, zoneOf, uniqueTableKey,
+    addTable, updateTable, setColumns, removeTable, moveTable, beginMove, setFold, foldAll,
+    addRelation, updateRelation, removeRelation,
+    addZone, updateZone, removeZone,
+    pushHistory, undo, redo, stats, persist,
+    canUndo: () => state.undoStack.length > 0,
+    canRedo: () => state.redoStack.length > 0
+  };
+})();

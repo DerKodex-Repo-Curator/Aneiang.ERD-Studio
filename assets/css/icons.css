@@ -1,0 +1,64 @@
+/* Remix Icon 4.6.0 subset (local, no CDN) - Apache-2.0, see fonts/NOTICE.md */
+@font-face{
+  font-family:"remixicon";
+  src:url("../fonts/remixicon.woff2") format("woff2");
+  font-display:swap;
+}
+[class^="ri-"],[class*=" ri-"]{
+  font-family:"remixicon" !important;
+  font-style:normal;
+  -webkit-font-smoothing:antialiased;
+  display:inline-block;
+  line-height:1;
+  vertical-align:-0.125em;
+}
+.ri-search-line:before { content: "\f0d1"; }
+.ri-add-line:before { content: "\ea13"; }
+.ri-subtract-line:before { content: "\f1af"; }
+.ri-zoom-in-line:before { content: "\f2db"; }
+.ri-zoom-out-line:before { content: "\f2dd"; }
+.ri-fullscreen-line:before { content: "\ed9c"; }
+.ri-arrow-go-back-line:before { content: "\ea58"; }
+.ri-arrow-go-forward-line:before { content: "\ea5a"; }
+.ri-upload-2-line:before { content: "\f24a"; }
+.ri-download-2-line:before { content: "\ec54"; }
+.ri-table-line:before { content: "\f1de"; }
+.ri-links-line:before { content: "\eeb8"; }
+.ri-stack-line:before { content: "\f181"; }
+.ri-layout-grid-line:before { content: "\ee90"; }
+.ri-delete-bin-line:before { content: "\ec2a"; }
+.ri-close-line:before { content: "\eb99"; }
+.ri-arrow-up-line:before { content: "\ea76"; }
+.ri-arrow-down-line:before { content: "\ea4c"; }
+.ri-folder-line:before { content: "\ed6a"; }
+.ri-folder-open-line:before { content: "\ed70"; }
+.ri-file-copy-line:before { content: "\ecd5"; }
+.ri-image-line:before { content: "\ee4b"; }
+.ri-file-code-line:before { content: "\ecd1"; }
+.ri-file-excel-2-line:before { content: "\ecdd"; }
+.ri-database-2-line:before { content: "\ec16"; }
+.ri-question-line:before { content: "\f045"; }
+.ri-arrow-down-s-line:before { content: "\ea4e"; }
+.ri-arrow-right-s-line:before { content: "\ea6e"; }
+.ri-arrow-left-s-line:before { content: "\ea64"; }
+.ri-arrow-up-s-line:before { content: "\ea78"; }
+.ri-check-line:before { content: "\eb7b"; }
+.ri-refresh-line:before { content: "\f064"; }
+.ri-eye-line:before { content: "\ecb5"; }
+.ri-eye-off-line:before { content: "\ecb7"; }
+.ri-flow-chart:before { content: "\ed46"; }
+.ri-edit-line:before { content: "\ec86"; }
+.ri-focus-3-line:before { content: "\ed4c"; }
+.ri-group-line:before { content: "\ede3"; }
+.ri-information-line:before { content: "\ee59"; }
+.ri-link:before { content: "\eeb2"; }
+.ri-link-unlink:before { content: "\eeb1"; }
+.ri-shape-line:before { content: "\f0f2"; }
+.ri-save-line:before { content: "\f0b3"; }
+.ri-key-2-line:before { content: "\ee6f"; }
+.ri-git-branch-line:before { content: "\edbd"; }
+.ri-brush-line:before { content: "\eb01"; }
+.ri-error-warning-line:before { content: "\eca1"; }
+.ri-checkbox-circle-line:before { content: "\eb81"; }
+.ri-loader-4-line:before { content: "\eec6"; }
+.ri-drag-move-line:before { content: "\ec62"; }

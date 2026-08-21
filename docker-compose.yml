@@ -1,0 +1,8 @@
+services:
+  erd-studio:
+    build: .
+    image: erd-studio:latest
+    container_name: erd-studio
+    ports:
+      - "8080:80"
+    restart: unless-stopped

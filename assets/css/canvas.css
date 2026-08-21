@@ -1,0 +1,124 @@
+/* ================================================================
+   Aneiang ERD Studio · canvas.css — 画布 / 背景图案 / 域背景 / 表卡片 / 连线 / 图例
+   ================================================================ */
+#viewport{
+  position:absolute;top:var(--header-h);left:0;right:0;bottom:var(--status-h);
+  overflow:hidden;cursor:grab;background-color:var(--bg);
+}
+#viewport.panning{cursor:grabbing}
+#viewport.connect{cursor:crosshair}
+#viewport.bg-grid{
+  background-image:linear-gradient(var(--grid) 1px,transparent 1px),
+    linear-gradient(90deg,var(--grid) 1px,transparent 1px);
+  background-size:24px 24px;
+}
+#viewport.bg-dots{
+  background-image:radial-gradient(var(--grid) 1.2px,transparent 1.2px);
+  background-size:22px 22px;
+}
+#viewport.bg-none{background-image:none}
+/* 缩放后文字清晰：仅在拖动平移时提升合成层，静止后回落并按当前缩放重绘文本 */
+#canvas{position:absolute;transform-origin:0 0}
+#viewport.panning #canvas{will-change:transform}
+
+/* ---------- 域背景带 ---------- */
+.zone{
+  position:absolute;border:1px dashed var(--zone-bd);border-radius:16px;
+  background:var(--zone-bg);pointer-events:none;
+}
+.zone-label{
+  position:absolute;top:-1px;left:14px;transform:translateY(-50%);
+  font-size:11px;font-weight:600;letter-spacing:2px;padding:3px 12px;border-radius:12px;
+  background:var(--bg);border:1px solid var(--line);
+}
+
+/* ---------- 连线层 ---------- */
+#edges{position:absolute;left:0;top:0;overflow:visible;pointer-events:none}
+.edge{fill:none;stroke:var(--edge);stroke-width:1.4;transition:stroke .2s,stroke-width .2s;pointer-events:stroke;cursor:pointer}
+.edge.logical{stroke-dasharray:7 5;stroke:var(--edge-logical)}
+.edge-label{font-size:10px;fill:var(--edge-label-fill);paint-order:stroke;stroke:var(--edge-label-stroke);stroke-width:3px;pointer-events:none}
+.edge:hover{stroke:var(--edge-hi);stroke-width:2.2}
+.edge.hi{stroke:var(--edge-hi);stroke-width:2.4}
+.edge.sel{stroke:var(--edge-sel);stroke-width:2.6}
+.edge.dim{stroke:var(--edge-dim);stroke-width:1;opacity:.35}
+#ghost{fill:none;stroke:var(--amber);stroke-width:1.6;stroke-dasharray:6 5;display:none;pointer-events:none}
+
+/* ---------- 表卡片 ---------- */
+.table{
+  position:absolute;width:252px;background:var(--panel);   /* 宽度由 JS 按单/双栏设置 */
+  border:1px solid var(--line);border-radius:10px;overflow:hidden;
+  box-shadow:var(--card-shadow);transition:box-shadow .2s,border-color .2s,opacity .2s;
+  cursor:grab;
+}
+.table.dragging{cursor:grabbing;box-shadow:var(--card-shadow-hi);opacity:.96;z-index:5}
+.table:hover{border-color:var(--table-hover-bd);box-shadow:var(--card-shadow-hi)}
+.table.hi{border-color:var(--amber);box-shadow:0 0 0 1px var(--amber),var(--card-shadow-hi);opacity:1!important}
+.table.sel{border-color:var(--edge-sel);box-shadow:0 0 0 1.5px var(--edge-sel),var(--card-shadow-hi)}
+.table.near{border-color:var(--near-bd);opacity:1!important}
+.table.dim{opacity:.22}
+.table.connect-src{border-color:var(--amber);box-shadow:0 0 0 1.5px var(--amber),var(--card-shadow-hi)}
+.t-head{
+  padding:4px 10px;display:flex;flex-direction:column;gap:3px;
+  border-bottom:1px solid var(--line);border-top:3px solid var(--accent);
+}
+.t-row1{display:flex;align-items:center;gap:6px;height:16px}
+.t-row2{display:flex;align-items:center;gap:6px;height:14px}
+.t-head .t-name{
+  font-size:11.5px;font-weight:700;font-family:Consolas,"Courier New",monospace;letter-spacing:.3px;color:var(--t-name);
+  flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+}
+.t-head .t-cn{
+  font-size:9.5px;color:var(--dim);flex:1;min-width:0;
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+}
+.t-head .t-cnt{font-size:9px;color:var(--dim);background:var(--panel2);border-radius:8px;padding:0 6px;line-height:13px;flex-shrink:0}
+.t-head .t-core{font-size:8px;color:var(--t-core-text);border-radius:5px;padding:0 5px;line-height:13px;font-weight:700;letter-spacing:.5px;flex-shrink:0}
+.t-head .t-folded{font-size:8px;color:var(--dim);border:1px solid var(--line);border-radius:4px;padding:0 5px;line-height:12px;flex-shrink:0}
+.t-fold{
+  flex-shrink:0;width:18px;height:16px;border:none;border-radius:5px;
+  background:transparent;color:var(--dim);cursor:pointer;display:flex;align-items:center;justify-content:center;
+  font-size:15px;line-height:1;padding:0;
+}
+.t-fold:hover{background:var(--panel3);color:var(--accent)}
+.rows{max-height:none}
+.row{
+  display:flex;align-items:center;gap:6px;height:16.5px;padding:0 8px;
+  font-size:10.5px;font-family:Consolas,"Courier New",monospace;
+  border-bottom:1px solid var(--row-bd);
+}
+.row:last-child{border-bottom:none}
+.row:hover{background:var(--row-hover)}
+.row.match{background:var(--row-match)}
+.c-name{color:var(--c-name);flex-shrink:0}
+.nn-star{color:var(--rose);font-style:normal;font-weight:700;margin-left:1px}
+.c-type{color:var(--c-type);font-size:9px;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.badge{
+  font-size:8px;font-weight:700;border-radius:4px;padding:0 4px;line-height:12px;flex-shrink:0;
+  letter-spacing:.5px;
+}
+.b-pk{background:rgba(224,175,104,.18);color:var(--pk);border:1px solid rgba(224,175,104,.4)}
+.b-fk{background:rgba(122,162,247,.15);color:var(--fk);border:1px solid rgba(122,162,247,.4)}
+.b-uk{background:rgba(115,218,202,.13);color:var(--uk);border:1px solid rgba(115,218,202,.35)}
+.b-idx{background:rgba(187,154,247,.13);color:var(--violet);border:1px solid rgba(187,154,247,.35);font-size:7.5px}
+
+/* ---------- 图例 ---------- */
+#legend{
+  position:fixed;right:12px;bottom:40px;z-index:70;width:268px;
+  background:var(--legend-bg);border:1px solid var(--line);border-radius:12px;padding:12px 14px;
+  font-size:11px;color:var(--dim);line-height:1.9;backdrop-filter:blur(6px);
+  transition:opacity .2s;
+}
+#legend h3{
+  font-size:11.5px;color:var(--title);font-weight:600;margin-bottom:6px;letter-spacing:1px;
+  display:flex;align-items:center;justify-content:space-between;
+}
+#legend h3 .lg-toggle{cursor:pointer;color:var(--dim);font-size:13px}
+#legend h3 .lg-toggle:hover{color:var(--btn-hover-text)}
+#legend.folded .lg-body{display:none}
+#legend .lg-row{display:flex;align-items:center;gap:8px}
+#legend svg{flex-shrink:0}
+#legend svg .lgp{stroke:var(--fk)}
+#legend svg .lgp-lg{stroke:var(--edge-logical)}
+#legend .zdot{display:inline-block;width:9px;height:9px;border-radius:3px;margin-right:6px;vertical-align:-1px}
+#legend .lg-zones>div{cursor:default}
+#legend .lg-nn{color:var(--rose);font-weight:700;font-style:normal}
