@@ -5,6 +5,9 @@
     <strong>零后端 · 零依赖 · 纯前端 · 离线可用</strong>
   </p>
   <p>
+    <a href="https://erd.aneiang.com/" target="_blank">
+      <img src="https://img.shields.io/badge/🚀_立即体验-在线版-blue?style=for-the-badge" alt="在线体验">
+    </a>
     <a href="https://github.com/AneiangSoft/Aneiang.ERD-Studio/stargazers">
       <img src="https://img.shields.io/github/stars/AneiangSoft/Aneiang.ERD-Studio?style=flat-square&logo=github&color=blue" alt="GitHub Stars">
     </a>
@@ -117,6 +120,16 @@
    - 子表缺少外键字段时，选「自动创建 `xxx_id`」即可一键补列
 4. **整理**：按业务域「自动布局」，多选表右键可对齐 / 等距分布 / 批量折叠
 5. **导入 / 导出**：导入已有 SQL DDL 逆向生成；导出 SQL（8 种方言）/ PNG / SVG / Mermaid / Excel 数据字典
+
+## 🚀 在线体验
+
+直接访问官方站点即可使用，无需安装：
+
+👉 **[https://erd.aneiang.com/](https://erd.aneiang.com/)**
+
+- 纯前端运行，数据保存在你的浏览器本地
+- 支持 PWA 安装到桌面，离线可用
+- 与 GitHub 版本同步更新
 
 ## 快速开始
 

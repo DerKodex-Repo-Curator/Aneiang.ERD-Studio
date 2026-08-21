@@ -5,6 +5,9 @@
     <strong>Zero-backend · Zero-dependency · Pure frontend · Offline-ready</strong>
   </p>
   <p>
+    <a href="https://erd.aneiang.com/" target="_blank">
+      <img src="https://img.shields.io/badge/🚀_Try_Online-Live_Demo-blue?style=for-the-badge" alt="Try Online">
+    </a>
     <a href="https://github.com/AneiangSoft/Aneiang.ERD-Studio/stargazers">
       <img src="https://img.shields.io/github/stars/AneiangSoft/Aneiang.ERD-Studio?style=flat-square&logo=github&color=blue" alt="GitHub Stars">
     </a>
@@ -117,6 +120,16 @@ English | [简体中文](README.zh-CN.md)
    - If the child table lacks a foreign-key column, choose "Auto-create `xxx_id`" to add one in one click
 4. **Tidy up** — auto-layout by business domain; multi-select tables and right-click to align / even distribute / fold
 5. **Import & export** — import existing SQL DDL to reverse-engineer a schema; export SQL (8 dialects), PNG / SVG / Mermaid / Excel data dictionary
+
+## 🚀 Try Online
+
+Use it directly in your browser — no installation required:
+
+👉 **[https://erd.aneiang.com/](https://erd.aneiang.com/)**
+
+- Pure frontend, all data stays in your browser locally
+- PWA installable for offline use
+- Synced with the latest GitHub release
 
 ## Quick Start
 
