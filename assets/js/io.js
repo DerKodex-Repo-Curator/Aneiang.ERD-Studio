@@ -46,8 +46,8 @@ ERD.io = (function () {
     const tables = j.tables || (Array.isArray(j) ? j : null);
     if (!tables || !Array.isArray(tables)) return { ok: false, error: 'JSON 中缺少 tables 数组' };
     const zones = (j.zones && j.zones.length ? j.zones : [
-      { key: 'z1', name: '默认域', color: '#7dcfff' }
-    ]).map(z => ({ key: z.key || ERD.uid('z'), name: z.name || '域', color: ERD.safeColor(z.color) }));
+      { key: 'z1', name: _t('默认域', 'Default Zone'), color: '#7dcfff' }
+    ]).map(z => ({ key: z.key || ERD.uid('z'), name: z.name || _t('域', 'Zone'), color: ERD.safeColor(z.color) }));
     tables.forEach(t => {
       t.key = String(t.key || t.name || 'table').toLowerCase();
       t.cn = t.cn || ''; t.desc = t.desc || t.description || '';
@@ -229,7 +229,7 @@ ERD.io = (function () {
       const w = Math.max(...ts.map(t => t.x + ERD.cardW(t))) + 20 - x;
       const h = Math.max(...ts.map(t => t.y + ERD.tableH(t))) + 20 - y;
       parts.push('<rect x="' + x + '" y="' + y + '" width="' + w + '" height="' + h + '" rx="16" fill="' + C.zoneBg + '" stroke="' + C.zoneBd + '" stroke-dasharray="6 6"/>');
-      parts.push('<text x="' + (x + 14) + '" y="' + (y - 8) + '" fill="' + ERD.safeColor(z.color) + '" font-size="13" font-weight="600" letter-spacing="3">' + esc(z.name) + ' · ' + ts.length + ' 表</text>');
+      parts.push('<text x="' + (x + 14) + '" y="' + (y - 8) + '" fill="' + ERD.safeColor(z.color) + '" font-size="13" font-weight="600" letter-spacing="3">' + esc(ERD.zoneLabel(z)) + ' · ' + ts.length + _t(' 表', ' tables') + '</text>');
     });
 
     // 连线

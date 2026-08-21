@@ -1,7 +1,7 @@
 /* ================================================================
    Aneiang ERD Studio · i18n.js — 纯前端多语言（简体中文 / English）
    用法：window._t('中文', 'English')；语言持久化于 localStorage(erd.lang)
-   切换语言后调用 ERD.i18n.set('en'/'zh')，或直接刷新页面
+   切换语言后调用 ERD.i18n.set('en'/'zh')，自动重渲染界面（无需刷新页面）
    ================================================================ */
 var ERD = window.ERD = window.ERD || {};
 ERD.i18n = (function () {
@@ -34,8 +34,11 @@ ERD.i18n = (function () {
     lang = l;
     try { localStorage.setItem(KEY, l); } catch (e) { /* ignore */ }
     apply();
-    /* 动态 UI 文案由 JS 生成，直接刷新以统一语言 */
-    if (typeof location !== 'undefined') location.reload();
+    /* 动态 UI 文案由 JS 生成：重渲染画布/图例/属性面板即可统一语言，无需整页刷新 */
+    try {
+      if (ERD.render && ERD.render.renderAll) ERD.render.renderAll();
+      if (ERD.editor && ERD.editor.renderDock) ERD.editor.renderDock();
+    } catch (e) { /* ignore */ }
   }
 
   return { t, get: () => lang, set, apply, LANGS };

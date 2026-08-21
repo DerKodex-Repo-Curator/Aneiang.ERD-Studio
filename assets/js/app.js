@@ -2,10 +2,13 @@
    Aneiang ERD Studio · app.js — 应用启动与事件分发
    ================================================================ */
 var ERD = window.ERD = window.ERD || {};
+ERD.VERSION = '1.1.0';   // 应用版本（欢迎页 / 关于 / 更新日志显示，与 CHANGELOG 保持一致）
 ERD.app = (function () {
 
   function onDirty(scope) {
     if (scope === 'move') return;   // 拖动由 render.scheduleMove 处理
+    if (scope && scope.type === 'table') { ERD.render.refreshTable(scope.key); return; }
+    if (scope && scope.type === 'relation') { ERD.render.refreshRelations(scope); return; }
     ERD.render.renderAll();
     ERD.render.applyFilter();
   }
@@ -47,6 +50,15 @@ ERD.app = (function () {
     ERD.render.renderAll();
     ERD.render.fit();
 
+    /* 首次使用展示欢迎页（版本 / 特性 / 快速开始 / 开源仓库入口）
+       标记 erd.welcome.v1 仅在用户点击「开始使用」时写入（editor.showWelcome），
+       因此在点击之前刷新页面会再次显示欢迎页 */
+    if (ERD.editor.showWelcome && !document.querySelector('#modal-mask.open')) {
+      try {
+        if (!localStorage.getItem('erd.welcome.v1')) ERD.editor.showWelcome();
+      } catch (e) { /* ignore */ }
+    }
+
     /* 属性面板关闭按钮 */
     document.getElementById('dock-close').onclick = () => ERD.interact.clearSelection();
 
@@ -55,15 +67,19 @@ ERD.app = (function () {
     tip.addEventListener('click', e => {
       const act = e.target.closest('[data-act]');
       if (!act) return;
-      if (act.dataset.act === 'newtable') document.getElementById('btn-newtable').click();
+      if (act.dataset.act === 'newproj') ERD.editor.dlgNewProject();
+      else if (act.dataset.act === 'newtable') document.getElementById('btn-newtable').click();
       else if (act.dataset.act === 'import') ERD.editor.dlgImport();
       else if (act.dataset.act === 'sample') ERD.editor.loadSample();
+      else if (act.dataset.act === 'open') ERD.io.openLocalFile();
     });
+    const tipVer = document.getElementById('tip-ver');
+    if (tipVer) tipVer.textContent = 'v' + ERD.VERSION;
 
     /* 刷新时确保落盘 */
     window.addEventListener('beforeunload', () => ERD.store.persist(true));
 
-    console.log('%c Aneiang ERD Studio %c v1.0 · 纯前端离线 ER 图设计平台 ', 'background:#24365c;color:#dbe7ff;border-radius:3px 0 0 3px', 'background:#161a22;color:#8b93a3;border-radius:0 3px 3px 0');
+    console.log('%c Aneiang ERD Studio %c v' + ERD.VERSION + ' · 纯前端离线 ER 图设计平台 ', 'background:#24365c;color:#dbe7ff;border-radius:3px 0 0 3px', 'background:#161a22;color:#8b93a3;border-radius:0 3px 3px 0');
   }
 
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot);

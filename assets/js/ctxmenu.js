@@ -22,13 +22,20 @@ ERD.ctx = (function () {
     close();
     const m = document.createElement('div');
     m.className = 'menu ctx open';
+    m.setAttribute('role', 'menu');
+    const menuItems = [];
     items.forEach(it => {
-      if (it === '-') { const s = document.createElement('div'); s.className = 'msep'; m.appendChild(s); return; }
-      if (it.title) { const t = document.createElement('div'); t.className = 'mtitle'; t.textContent = it.title; m.appendChild(t); return; }
+      if (it === '-') { const s = document.createElement('div'); s.className = 'msep'; s.setAttribute('role', 'separator'); m.appendChild(s); return; }
+      if (it.title) { const t = document.createElement('div'); t.className = 'mtitle'; t.textContent = it.title; t.setAttribute('role', 'presentation'); m.appendChild(t); return; }
       const mi = document.createElement('div');
       mi.className = 'mi' + (it.danger ? ' danger' : '') + (it.disabled ? ' disabled' : '');
+      mi.setAttribute('role', 'menuitem');
       mi.innerHTML = '<i class="' + (it.icon || 'ri-checkbox-blank-circle-fill') + '"></i><span>' + ERD.esc(it.label) + '</span>' + (it.right || '');
-      if (!it.disabled) mi.onclick = () => { close(); it.onClick(); };
+      mi.tabIndex = -1;
+      if (!it.disabled) {
+        menuItems.push(mi);
+        mi.onclick = () => { close(); it.onClick(); };
+      }
       m.appendChild(mi);
     });
     document.body.appendChild(m);
@@ -40,6 +47,27 @@ ERD.ctx = (function () {
     m.style.left = Math.min(x, VW - MW - 8) + 'px';
     m.style.top = (y + MH > VH - 8) ? Math.max(8, y - MH - 4) + 'px' : (y + 4) + 'px';
     m.style.right = 'auto';
+    /* 键盘导航：方向键 / Home / End / 回车 / 空格 / Esc */
+    m.addEventListener('keydown', e => {
+      const len = menuItems.length;
+      if (!len) return;
+      const idx = menuItems.indexOf(document.activeElement);
+      let target = -1;
+      if (e.key === 'ArrowDown') target = idx < 0 ? 0 : (idx + 1) % len;
+      else if (e.key === 'ArrowUp') target = idx < 0 ? len - 1 : (idx - 1 + len) % len;
+      else if (e.key === 'Home') target = 0;
+      else if (e.key === 'End') target = len - 1;
+      else if (e.key === 'Enter' || e.key === ' ') {
+        if (idx >= 0) { e.preventDefault(); menuItems[idx].click(); }
+        return;
+      } else if (e.key === 'Escape') { e.preventDefault(); close(); return; }
+      else return;
+      e.preventDefault();
+      menuItems[target].focus();
+    });
+    /* 打开后聚焦首项（与系统右键菜单一致） */
+    const first = menuItems[0];
+    if (first) first.focus();
   }
 
   /* ---------- 事件入口 ---------- */
@@ -127,10 +155,10 @@ ERD.ctx = (function () {
     ];
     p.zones.forEach(z => items.push({
       icon: 'ri-stack-line',
-      label: _t('移动到域 · ', 'Move to zone · ') + z.name,
+      label: _t('移动到域 · ', 'Move to zone · ') + ERD.zoneLabel(z),
       onClick: () => {
         ERD.store.moveTables(keys, z.key);
-        ERD.editor.toast(_t('已移动 ' + n + ' 张表到「' + z.name + '」', 'Moved ' + n + ' tables to "' + z.name + '"'), 'ok');
+        ERD.editor.toast(_t('已移动 ' + n + ' 张表到「' + ERD.zoneLabel(z) + '」', 'Moved ' + n + ' tables to "' + ERD.zoneLabel(z) + '"'), 'ok');
       }
     }));
     items.push('-');

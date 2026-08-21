@@ -47,7 +47,7 @@
 .table{
   position:absolute;width:252px;background:var(--panel);   /* 宽度由 JS 按单/双栏设置 */
   border:1px solid var(--line);border-radius:10px;overflow:hidden;
-  box-shadow:var(--card-shadow);transition:box-shadow .2s,border-color .2s,opacity .2s;
+  box-shadow:var(--card-shadow);transition:box-shadow var(--dur-base) var(--ease),border-color var(--dur-base) var(--ease),opacity var(--dur-base) var(--ease);
   cursor:grab;
 }
 .table.dragging{cursor:grabbing;box-shadow:var(--card-shadow-hi);opacity:.96;z-index:5}
@@ -89,9 +89,9 @@
 .row:last-child{border-bottom:none}
 .row:hover{background:var(--row-hover)}
 .row.match{background:var(--row-match)}
-.c-name{color:var(--c-name);flex-shrink:0}
+.c-name{color:var(--c-name);flex-shrink:0;max-width:56%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .nn-star{color:var(--rose);font-style:normal;font-weight:700;margin-left:1px}
-.c-type{color:var(--c-type);font-size:9px;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.c-type{color:var(--c-type);font-size:10px;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .badge{
   font-size:8px;font-weight:700;border-radius:4px;padding:0 4px;line-height:12px;flex-shrink:0;
   letter-spacing:.5px;
@@ -141,3 +141,25 @@
   position:absolute;z-index:120;display:none;pointer-events:none;
   border:1px dashed var(--amber);background:rgba(224,175,104,.08);border-radius:2px;
 }
+
+/* ---------- 空画布引导卡片 ---------- */
+#empty-tip{
+  display:none;position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);
+  align-items:center;justify-content:center;z-index:10;padding:16px;
+}
+.tip-card{
+  display:flex;flex-direction:column;align-items:center;gap:9px;
+  padding:30px 40px 26px;background:var(--panel);border:1px solid var(--line2);border-radius:16px;
+  box-shadow:var(--shadow);max-width:min(92vw,460px);
+  animation:popIn var(--dur-base) var(--ease);
+}
+.tip-logo{
+  width:58px;height:58px;border-radius:16px;display:flex;align-items:center;justify-content:center;
+  background:linear-gradient(135deg,var(--panel3),var(--panel2));border:1px solid var(--line2);
+  color:var(--accent);font-size:30px;margin-bottom:2px;
+}
+.tip-title{font-size:16px;font-weight:700;color:var(--title);display:flex;align-items:center;gap:8px;letter-spacing:.4px}
+.tip-ver{font-size:10.5px;color:var(--dim);background:var(--panel3);border:1px solid var(--line2);border-radius:8px;padding:1px 7px;font-weight:600}
+.tip-sub{font-size:12.5px;color:var(--dim);text-align:center;line-height:1.7}
+.tip-actions{display:flex;gap:8px;flex-wrap:wrap;justify-content:center;margin-top:8px}
+.tip-hint{font-size:11px;color:var(--dimmer);margin-top:10px}

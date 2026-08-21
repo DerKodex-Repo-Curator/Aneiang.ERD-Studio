@@ -40,6 +40,19 @@ ERD.safeColor = function (c) {
   if (/^(rgb|rgba|hsl|hsla)\(\s*[\d\s.,%]*\)$/.test(s)) return s;
   return '#7aa2f7';
 };
+/* 域显示名：默认域（核心域/扩展域，未改名前）跟随界面语言，改名的域显示自定义名 */
+ERD.zoneLabel = function (z) {
+  const T = (typeof _t === 'function') ? _t : (zh => zh);
+  if (!z) return T('未分组', 'Ungrouped');
+  if (z.key === 'z_core' && z.name === '核心域') return T('核心域', 'Core');
+  if (z.key === 'z_ext' && z.name === '扩展域') return T('扩展域', 'Ext');
+  return z.name;
+};
+/* 内置字段注释显示名：{zh,en} 对象 → 当前语言字符串；普通字符串原样返回 */
+ERD.tCmt = function (c) {
+  if (c && typeof c === 'object' && c.zh != null) return (typeof _t === 'function') ? _t(c.zh, c.en) : c.zh;
+  return c || '';
+};
 
 /* ---------- 事件总线 ---------- */
 ERD.bus = (function () {
@@ -131,7 +144,8 @@ ERD.vault = (function () {
   function put(p) {
     open().then(d => {
       if (!d || !p || !p.id) return;
-      try { d.transaction(STORE, 'readwrite').objectStore(STORE).put(JSON.parse(JSON.stringify(p))); } catch (e) { /* ignore */ }
+      /* IndexedDB 存储时会自动结构化克隆，无需手动深拷贝（调用方传入的是快照对象） */
+      try { d.transaction(STORE, 'readwrite').objectStore(STORE).put(p); } catch (e) { /* ignore */ }
     });
   }
   function del(id) {
@@ -189,7 +203,13 @@ ERD.store = (function () {
   const MANIFEST_KEY = 'erd.manifest.v1';
   const PROJ_PREFIX = 'erd.project.';
   const HISTORY_MAX = 60;
+  const HISTORY_BYTES_MAX = 20 * 1024 * 1024;   // 撤销历史总字节上限，防大工程内存暴涨
   const SCHEMA_VERSION = 1;   // 工程数据格式版本（升级结构时递增并补充 migrate 步骤）
+
+  /* 深拷贝：优先原生 structuredClone（更快且保留类型），旧环境回退 JSON 往返 */
+  const deepClone = (typeof structuredClone === 'function')
+    ? function (v) { return structuredClone(v); }
+    : function (v) { return JSON.parse(JSON.stringify(v)); };
 
   /* 工程数据迁移：未来 schemaVersion 递增时在此按版本逐步升级 */
   function migrate(p) {
@@ -210,13 +230,14 @@ ERD.store = (function () {
 
   /* ---------- localStorage 基础 ---------- */
   function lsGet(k) { try { return JSON.parse(localStorage.getItem(k)); } catch (e) { return null; } }
-  function lsSet(k, v) {
-    try { localStorage.setItem(k, JSON.stringify(v)); return true; }
+  function lsSetRaw(k, str) {
+    try { localStorage.setItem(k, str); return true; }
     catch (e) {
       busStatus('本地存储空间不足，请导出 JSON 备份并清理旧工程', 'warn');
       return false;
     }
   }
+  function lsSet(k, v) { return lsSetRaw(k, JSON.stringify(v)); }
   function lsDel(k) { try { localStorage.removeItem(k); } catch (e) { /* ignore */ } }
 
   function busStatus(msg, kind) { ERD.bus.emit('status', { msg, kind: kind || 'info' }); }
@@ -237,21 +258,40 @@ ERD.store = (function () {
   }
 
   /* ---------- 历史记录（撤销/重做） ---------- */
+  /* 复制表对象（剔除渲染期挂载的 DOM 引用 el，避免 structuredClone 抛错 / 存储冗余） */
+  function copyTable(t) {
+    const c = {};
+    for (const k in t) if (k !== 'el') c[k] = t[k];
+    return c;
+  }
   function snapshot() {
     const p = state.p;
-    return JSON.stringify({ zones: p.zones, tables: p.tables, relations: p.relations });
+    return deepClone({
+      zones: p.zones,
+      tables: p.tables.map(copyTable),
+      relations: p.relations
+    });
   }
   function pushHistory(label) {
     if (!state.p) return;
-    state.undoStack.push({ json: snapshot(), label: label || '' });
-    if (state.undoStack.length > HISTORY_MAX) state.undoStack.shift();
+    const data = snapshot();
+    const size = byteSize(JSON.stringify(data));
+    state.undoStack.push({ data, size, label: label || '' });
+    /* 裁剪：条数上限 + 总字节上限（从新到旧累计，超限即丢弃更旧的快照） */
+    let total = 0;
+    for (let i = state.undoStack.length - 1; i >= 0; i--) {
+      total += state.undoStack[i].size;
+      if (state.undoStack.length - i > HISTORY_MAX || total > HISTORY_BYTES_MAX) {
+        state.undoStack.splice(0, i + 1);
+        break;
+      }
+    }
     state.redoStack.length = 0;
     ERD.bus.emit('history');
   }
-  function restore(json) {
+  function restore(data) {
     const p = state.p;
-    const d = JSON.parse(json);
-    p.zones = d.zones; p.tables = d.tables; p.relations = d.relations;
+    p.zones = data.zones; p.tables = data.tables; p.relations = data.relations;
     ERD.view.sel = null; ERD.view.connectFrom = null;
     persist();
     ERD.bus.emit('dirty', 'all');
@@ -259,16 +299,16 @@ ERD.store = (function () {
   function undo() {
     if (!state.undoStack.length) { busStatus('没有可撤销的操作'); return; }
     const item = state.undoStack.pop();
-    state.redoStack.push({ json: snapshot(), label: item.label });
-    restore(item.json);
+    state.redoStack.push({ data: snapshot(), label: item.label });
+    restore(item.data);
     busStatus('已撤销：' + (item.label || '操作'));
     ERD.bus.emit('history');
   }
   function redo() {
     if (!state.redoStack.length) { busStatus('没有可重做的操作'); return; }
     const item = state.redoStack.pop();
-    state.undoStack.push({ json: snapshot(), label: item.label });
-    restore(item.json);
+    state.undoStack.push({ data: snapshot(), label: item.label });
+    restore(item.data);
     busStatus('已重做：' + (item.label || '操作'));
     ERD.bus.emit('history');
   }
@@ -282,12 +322,15 @@ ERD.store = (function () {
     clearTimeout(state._persistTimer);
     const doSave = () => {
       state.p.updatedAt = new Date().toISOString();
+      /* 单次序列化复用：localStorage 与救援保险箱共用同一份字符串
+         （展开保留全部顶层字段，仅剔除表上的渲染期 DOM 引用 el） */
+      const str = JSON.stringify(Object.assign({}, state.p, { tables: state.p.tables.map(copyTable) }));
       /* 大工程预警：接近 localStorage 配额时提醒定期备份 */
-      const size = byteSize(JSON.stringify(state.p));
+      const size = byteSize(str);
       if (size > QUOTA_WARN) {
         busStatus('工程约 ' + (size / 1048576).toFixed(1) + ' MB，接近浏览器存储上限，请定期「导出 → 工程 JSON」备份', 'warn');
       }
-      if (lsSet(PROJ_PREFIX + state.p.id, state.p)) {
+      if (lsSetRaw(PROJ_PREFIX + state.p.id, str)) {
         const m = state.manifest.projects.find(x => x.id === state.p.id);
         if (m) {
           m.name = state.p.name; m.description = state.p.description;
@@ -298,12 +341,12 @@ ERD.store = (function () {
         ERD.bus.emit('saved');
       } else {
         /* localStorage 写入失败（配额/隐私模式）：提示 + 自动导出备份兜底 */
-        ERD.vault.put(state.p);
+        ERD.vault.put(JSON.parse(str));
         busStatus('本地存储写入失败，已尝试写入救援存储，并自动导出 JSON 备份', 'err');
         try { if (ERD.io && ERD.io.exportJSON) ERD.io.exportJSON(); } catch (e) { /* ignore */ }
       }
-      /* 每次保存都镜像到 IndexedDB 救援保险箱（异步不阻塞） */
-      ERD.vault.put(state.p);
+      /* 每次保存都镜像到 IndexedDB 救援保险箱（快照对象，IDB 自行克隆；异步不阻塞） */
+      ERD.vault.put(JSON.parse(str));
     };
     if (immediate) doSave();
     else state._persistTimer = setTimeout(doSave, 350);
@@ -495,7 +538,8 @@ ERD.store = (function () {
     const t = tableByKey(key); if (!t) return;
     pushHistory(label || '修改表');
     Object.assign(t, patch);
-    persist(); ERD.bus.emit('dirty', 'all');
+    persist();
+    ERD.bus.emit('dirty', { type: 'table', key });
   }
 
   function setColumns(key, cols, label) {
@@ -503,7 +547,8 @@ ERD.store = (function () {
     pushHistory(label || '修改字段');
     t.cols = cols;
     syncFkFlags(t);
-    persist(); ERD.bus.emit('dirty', 'all');
+    persist();
+    ERD.bus.emit('dirty', { type: 'table', key });
   }
 
   function removeTable(key) {
@@ -518,18 +563,19 @@ ERD.store = (function () {
 
   /* ---------- 表移动（拖拽） ---------- */
   function beginMove() { pushHistory('移动表'); }
+  /* 拖拽中不落盘（避免每帧全工程序列化），由 interact 在 mouseup 时统一 persist(true) */
   function moveTable(key, x, y) {
     const t = tableByKey(key); if (!t) return;
     t.x = Math.round(x); t.y = Math.round(y);
     ERD.bus.emit('dirty', 'move');
-    persist();
   }
 
   /* ---------- 折叠 / 展开（显示状态，不进撤销历史） ---------- */
   function setFold(key, fold) {
     const t = tableByKey(key); if (!t) return;
     t.fold = !!fold;
-    persist(); ERD.bus.emit('dirty', 'all');
+    persist();
+    ERD.bus.emit('dirty', { type: 'table', key });
     if (ERD.view.sel && ERD.view.sel.type === 'table' && ERD.view.sel.id === key) ERD.bus.emit('select');
   }
   function foldAll(fold) {
@@ -634,15 +680,17 @@ ERD.store = (function () {
       r.from = rel.from; r.to = rel.to; r.label = rel.label || '';
     }
     state.p.relations.push(r);
-    persist(); ERD.bus.emit('dirty', 'all');
+    persist();
+    ERD.bus.emit('dirty', { type: 'relation', key: r.type === 'fk' ? r.child : undefined });
     return r;
   }
 
   function updateRelation(id, patch, label) {
     const r = relById(id); if (!r) return;
     pushHistory(label || '修改关系');
+    const oldChild = r.child;
     if (patch.col !== undefined) {
-      const ct = tableByKey(r.child);
+      const ct = tableByKey(oldChild);
       if (ct) { const old = ct.cols.find(c => c[0] === r.col); if (old) old[2] = ''; }
     }
     Object.assign(r, patch);
@@ -654,7 +702,10 @@ ERD.store = (function () {
         syncFkFlags(ct);
       }
     }
-    persist(); ERD.bus.emit('dirty', 'all');
+    persist();
+    /* 新旧子表都需刷新卡片（fk 徽标可能变化） */
+    const keys = [r.child, oldChild].filter(Boolean);
+    ERD.bus.emit('dirty', { type: 'relation', key: r.child, keys: keys.length > 1 ? keys : undefined });
     ERD.bus.emit('select');
   }
 
@@ -664,7 +715,8 @@ ERD.store = (function () {
     state.p.relations = state.p.relations.filter(x => x.id !== id);
     if (r.type === 'fk') { const ct = tableByKey(r.child); if (ct) syncFkFlags(ct); }
     if (ERD.view.sel && ERD.view.sel.id === id) { ERD.view.sel = null; ERD.bus.emit('select'); }
-    persist(); ERD.bus.emit('dirty', 'all');
+    persist();
+    ERD.bus.emit('dirty', { type: 'relation', key: r.type === 'fk' ? r.child : undefined });
   }
 
   /* ---------- 域操作 ---------- */

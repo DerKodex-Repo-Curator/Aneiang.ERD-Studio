@@ -196,6 +196,8 @@ ERD.interact = (function () {
     if (panning) { panning = null; viewport.classList.remove('panning'); }
     if (dragging) {
       const d = dragging; dragging = null;
+      /* 拖拽结束统一落盘（拖拽过程中 moveTable 不写存储） */
+      if (d.moved) ERD.store.persist(true);
       if (d.group) {
         d.keys.forEach(k => { const t = ERD.store.tableByKey(k); if (t && t.el) t.el.classList.remove('dragging'); });
         if (!d.moved) onTableClick(d.keys[0]);

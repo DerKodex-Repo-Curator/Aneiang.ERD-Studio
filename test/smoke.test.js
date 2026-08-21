@@ -16,6 +16,7 @@ require(path.join(base, 'store.js'));   // 定义 window.ERD 基础
 require(path.join(base, 'sql.js'));
 require(path.join(base, 'io.js'));
 require(path.join(base, 'sample.js'));
+require(path.join(base, 'presets.js'));
 
 const ERD = window.ERD;
 let pass = 0, fail = 0;
@@ -166,6 +167,66 @@ T('PG CONSTRAINT uk', r3.tables[0].cols.find(c => c[0] === 'id_card')[2] === 'uk
 T('PG ALTER FK', r3.relations.some(r => r.col === 'org_id' && r.parent === 'sys_org'));
 T('PG COMMENT ON COLUMN', r3.tables[0].cols.find(c => c[0] === 'id_card')[3] === '证件号（加密）');
 T('PG COMMENT ON TABLE cn', r3.tables[0].cn === '会员主表：核心档案');
+
+console.log('== 撤销/重做（deepClone 快照 + 剥离 DOM 引用） ==');
+const hp = ERD.store.create('测试工程', '', {
+  zones: [{ key: 'z1', name: '域', color: '#ff0000' }],
+  tables: [],
+  relations: []
+});
+T('创建工程成功', !!hp && !!hp.id && hp.id.length > 2);
+/* 注入一张带 DOM 引用 el 的表：快照须剥离 el，否则 structuredClone 会抛错 */
+hp.tables.push({ key: 't_el', zone: 'z1', x: 0, y: 0, cn: '带el', desc: '', core: false, cols: [['id', 'bigint', 'pk', '', true]], el: { tagName: 'DIV' } });
+ERD.store.beginMove();   // pushHistory（不依赖 document）
+T('可撤销', ERD.store.canUndo());
+ERD.store.undo();
+const rt = ERD.store.state.p.tables[0];
+T('撤销恢复表格', !!rt && rt.key === 't_el');
+T('快照剥离 DOM 引用 el', rt && rt.el === undefined);
+T('撤销保留字段数据', rt && rt.cols[0][0] === 'id' && rt.cols[0][2] === 'pk' && rt.cols[0][4] === true);
+T('可重做', ERD.store.canRedo());
+ERD.store.redo();
+T('重做恢复表格', ERD.store.state.p.tables.length === 1 && ERD.store.state.p.tables[0].key === 't_el');
+T('重做后仍可撤销', ERD.store.canUndo());
+/* 历史条数上限：连推 70 次应被裁剪到 60，且仍可正常撤销 */
+for (let i = 0; i < 70; i++) ERD.store.beginMove();
+T('历史条数裁剪后仍可撤销', ERD.store.canUndo());
+ERD.store.undo();
+T('裁剪后撤销不报错', ERD.store.state.p.tables.length === 1);
+/* persist 单次序列化：存储中不残留渲染期字段 el */
+ERD.store.persist(true);
+const stored = JSON.parse(LS['erd.project.' + hp.id]);
+T('持久化剥离 el', !!stored && !!stored.tables[0] && !('el' in stored.tables[0]));
+T('持久化保留字段数据', !!stored && stored.tables[0].cols[0][0] === 'id');
+
+console.log('== 常用字段注册表（内置 + 自定义持久化） ==');
+T('内置常用字段 18 个', ERD.quick.BUILTIN.length === 18, 'got ' + ERD.quick.BUILTIN.length);
+T('新增自定义字段', ERD.quick.add({ name: 'mobile2', type: 'varchar(20)', cmt: '测试', flag: 'idx', nn: true }) === true);
+T('自定义字段进入列表', ERD.quick.list().some(f => f.name === 'mobile2'));
+T('重复名称被拒绝', ERD.quick.add({ name: 'mobile2' }) === false);
+T('空名称被拒绝', ERD.quick.add({ name: '  ' }) === false);
+T('删除自定义字段', ERD.quick.remove('mobile2') === true);
+T('删除后不再存在', !ERD.quick.list().some(f => f.name === 'mobile2'));
+
+console.log('== 默认域显示名（zoneLabel） ==');
+T('默认核心域（无 _t 回退中文）', ERD.zoneLabel({ key: 'z_core', name: '核心域' }) === '核心域');
+T('默认扩展域（无 _t 回退中文）', ERD.zoneLabel({ key: 'z_ext', name: '扩展域' }) === '扩展域');
+T('改名后的域显示自定义名', ERD.zoneLabel({ key: 'z_core', name: '我的域' }) === '我的域');
+T('缺失域回退未分组', ERD.zoneLabel(null) === '未分组');
+
+console.log('== 内置字段注释（tCmt 归一化） ==');
+T('tCmt 对象注释回退中文', ERD.tCmt({ zh: '主键', en: 'ID' }) === '主键');
+T('tCmt 普通字符串原样返回', ERD.tCmt('自定义注释') === '自定义注释');
+T('tCmt 空值返回空串', ERD.tCmt('') === '' && ERD.tCmt(null) === '');
+T('模板主键注释已归一化（非对象）', ERD.presets.TEMPLATES.every(tp =>
+  tp.cols.every(c => typeof c[3] === 'string' || c[3] == null) ? true : tp.cols.every(c => typeof c[3] === 'object' || typeof c[3] === 'string')),
+  '存在非预期类型');
+/* 模拟建表路径：tCmt 后注释必须是纯字符串，可直接落库 */
+const tplStd = ERD.presets.TEMPLATES.find(tp => tp.key === 'std');
+const builtCols = tplStd.cols.map(c => [c[0], c[1], c[2], ERD.tCmt(c[3]), c[4]]);
+T('模板建表注释落库为字符串', builtCols.every(c => typeof c[3] === 'string'), JSON.stringify(builtCols.filter(c => typeof c[3] !== 'string').map(c => c[3])));
+T('审计六件套注释双语对象', ERD.presets.AUDIT.every(a => a[3] && typeof a[3] === 'object' && a[3].en));
+T('常用字段注释双语对象', ERD.presets.QUICK_FIELDS.every(f => f.cmt && typeof f.cmt === 'object' && f.cmt.en));
 
 console.log('\n结果: ' + pass + ' 通过, ' + fail + ' 失败');
 process.exit(fail ? 1 : 0);

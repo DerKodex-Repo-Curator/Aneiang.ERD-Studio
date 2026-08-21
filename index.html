@@ -18,12 +18,12 @@
 <header>
   <div class="brand">
     <span class="logo"><i class="ri-flow-chart"></i></span>
-    <div class="tt"><b>Aneiang ERD Studio</b><small>数据库 ER 图在线设计 · 纯前端 · 离线可用</small></div>
+    <div class="tt"><b>Aneiang ERD Studio</b><small data-i18n data-i18n-zh="数据库 ER 图在线设计 · 纯前端 · 离线可用" data-i18n-en="Online ER diagram designer · pure frontend · offline"></small></div>
   </div>
 
   <div class="proj-wrap">
-    <select id="proj-select" title="切换工程" data-i18n data-i18n-attr="title" data-i18n-zh="切换工程" data-i18n-en="Switch project"></select>
-    <button class="btn icon" id="btn-proj-menu" data-menu data-i18n data-i18n-attr="title" data-i18n-zh="工程管理" data-i18n-en="Project" ><i class="ri-arrow-down-s-line"></i></button>
+    <button class="btn project-btn" id="btn-project" data-i18n data-i18n-attr="title" data-i18n-zh="切换 / 管理工程" data-i18n-en="Switch / manage project"><i class="ri-database-2-line"></i><span class="pname" id="proj-name">工程</span><i class="ri-arrow-down-s-line"></i></button>
+    <button class="btn" id="btn-newproj" data-i18n data-i18n-attr="title" data-i18n-zh="新建工程" data-i18n-en="New Project"><i class="ri-add-circle-line"></i><span class="btxt" data-i18n data-i18n-zh="新建工程" data-i18n-en="New Project"></span></button>
   </div>
 
   <span class="hsep"></span>
@@ -32,14 +32,22 @@
   <button class="btn icon" id="btn-undo" data-i18n data-i18n-attr="title" data-i18n-zh="撤销（Ctrl+Z）" data-i18n-en="Undo (Ctrl+Z)" disabled><i class="ri-arrow-go-back-line"></i></button>
   <button class="btn icon" id="btn-redo" data-i18n data-i18n-attr="title" data-i18n-zh="重做（Ctrl+Y）" data-i18n-en="Redo (Ctrl+Y)" disabled><i class="ri-arrow-go-forward-line"></i></button>
 
+  <span class="hsep"></span>
+
   <div class="search-wrap">
-    <i class="ri-search-line"></i>
-    <input id="search" data-i18n data-i18n-attr="placeholder" data-i18n-zh="搜索表 / 字段…（Ctrl+F）" data-i18n-en="Search tables / fields… (Ctrl+F)" autocomplete="off">
+    <div class="search-box">
+      <i class="ri-search-line"></i>
+      <input id="search" data-i18n data-i18n-attr="placeholder" data-i18n-zh="搜索表 / 字段…（Ctrl+F）" data-i18n-en="Search tables / fields… (Ctrl+F)" autocomplete="off">
+    </div>
   </div>
 
   <button class="btn" id="btn-file" data-menu data-i18n data-i18n-attr="title" data-i18n-zh="文件：打开/保存本地文件、导入、分享链接、类型库" data-i18n-en="File: open/save, import, share, types"><i class="ri-folder-2-line"></i><span class="btxt" data-i18n data-i18n-zh="文件" data-i18n-en="File"></span><i class="ri-arrow-down-s-line"></i></button>
   <button class="btn" id="btn-export" data-menu data-i18n data-i18n-attr="title" data-i18n-zh="导出" data-i18n-en="Export"><i class="ri-download-2-line"></i><span class="btxt" data-i18n data-i18n-zh="导出" data-i18n-en="Export"></span><i class="ri-arrow-down-s-line"></i></button>
   <button class="btn" id="btn-tools" data-menu data-i18n data-i18n-attr="title" data-i18n-zh="工具：连线模式 / 业务域 / 折叠" data-i18n-en="Tools: connect / zones / fold"><i class="ri-tools-line"></i><span class="btxt" data-i18n data-i18n-zh="工具" data-i18n-en="Tools"></span><i class="ri-arrow-down-s-line"></i></button>
+
+  <span class="hsep"></span>
+
+  <a class="btn icon" id="btn-star" href="https://github.com/AneiangSoft/Aneiang.ERD-Studio" target="_blank" rel="noopener" title="Star on GitHub" data-i18n data-i18n-attr="title" data-i18n-zh="在 GitHub 上为本项目点星" data-i18n-en="Star this project on GitHub"><i class="ri-star-line"></i></a>
   <button class="btn icon" id="btn-help" data-i18n data-i18n-attr="title" data-i18n-zh="帮助" data-i18n-en="Help"><i class="ri-question-line"></i></button>
 </header>
 
@@ -48,14 +56,20 @@
   <div id="canvas">
     <svg id="edges"></svg>
   </div>
-  <div id="minimap" title="迷你地图：点击/拖动跳转视图"><canvas id="mm-canvas" width="170" height="120"></canvas></div>
-  <div id="empty-tip" style="display:none;position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);flex-direction:column;gap:14px;align-items:center;color:var(--dim);z-index:10">
-    <i class="ri-database-2-line" style="font-size:44px;color:var(--line2)"></i>
-    <div style="font-size:14px;letter-spacing:1px" data-i18n data-i18n-zh="画布还是空的，双击此处或按 N 开始设计" data-i18n-en="Canvas is empty — double-click here or press N to start"></div>
-    <div style="display:flex;gap:10px">
-      <button class="btn" data-act="newtable"><i class="ri-table-line"></i><span data-i18n data-i18n-zh="新建表（模板）" data-i18n-en="New Table (template)"></span></button>
-      <button class="btn" data-act="import"><i class="ri-upload-2-line"></i><span data-i18n data-i18n-zh="导入 SQL / JSON" data-i18n-en="Import SQL / JSON"></span></button>
-      <button class="btn" data-act="sample"><i class="ri-database-2-line"></i><span data-i18n data-i18n-zh="载入演示示例" data-i18n-en="Load sample"></span></button>
+  <div id="minimap" data-i18n data-i18n-attr="title" data-i18n-zh="迷你地图：点击/拖动跳转视图" data-i18n-en="Mini-map: click/drag to jump the view"><canvas id="mm-canvas" width="170" height="120"></canvas></div>
+  <div id="empty-tip">
+    <div class="tip-card">
+      <div class="tip-logo"><i class="ri-flow-chart"></i></div>
+      <div class="tip-title">Aneiang ERD Studio<span class="tip-ver" id="tip-ver"></span></div>
+      <div class="tip-sub" data-i18n data-i18n-zh="画布还是空的，从下面开始创建你的数据库设计" data-i18n-en="Canvas is empty — start your database design below"></div>
+      <div class="tip-actions">
+        <button class="btn primary" data-act="newproj"><i class="ri-add-circle-line"></i><span data-i18n data-i18n-zh="新建工程" data-i18n-en="New Project"></span></button>
+        <button class="btn" data-act="newtable"><i class="ri-table-line"></i><span data-i18n data-i18n-zh="新建表" data-i18n-en="New Table"></span></button>
+        <button class="btn" data-act="import"><i class="ri-upload-2-line"></i><span data-i18n data-i18n-zh="导入 SQL / JSON" data-i18n-en="Import SQL / JSON"></span></button>
+        <button class="btn" data-act="sample"><i class="ri-database-2-line"></i><span data-i18n data-i18n-zh="载入演示示例" data-i18n-en="Load Sample"></span></button>
+        <button class="btn" data-act="open"><i class="ri-folder-open-line"></i><span data-i18n data-i18n-zh="打开本地文件" data-i18n-en="Open Local File"></span></button>
+      </div>
+      <div class="tip-hint" data-i18n data-i18n-zh="双击空白处或按 N 也可快速新建表" data-i18n-en="Double-click the canvas or press N to quickly add a table"></div>
     </div>
   </div>
 </div>
@@ -80,19 +94,21 @@
   <div class="dock-head">
     <i id="dock-head-icon" class="ri-table-line zone-dot"></i>
     <div class="tname" id="dock-head-info"></div>
-    <button class="btn sm icon" id="dock-close" title="关闭（Esc）"><i class="ri-close-line"></i></button>
+    <button class="btn sm icon" id="dock-close" data-i18n data-i18n-attr="title" data-i18n-zh="关闭（Esc）" data-i18n-en="Close (Esc)"><i class="ri-close-line"></i></button>
   </div>
   <div id="dock-body"></div>
 </div>
 
 <!-- ============ 底部状态栏 ============ -->
 <div id="statusbar">
-  <span class="chip"><span data-i18n data-i18n-zh="工程" data-i18n-en="Projects"></span> <b id="st-proj">0</b></span>
-  <span class="chip"><span data-i18n data-i18n-zh="表" data-i18n-en="Tables"></span> <b id="st-t">0</b></span>
-  <span class="chip"><span data-i18n data-i18n-zh="字段" data-i18n-en="Fields"></span> <b id="st-c">0</b></span>
-  <span class="chip"><span data-i18n data-i18n-zh="物理外键" data-i18n-en="FK"></span> <b id="st-fk">0</b></span>
-  <span class="chip"><span data-i18n data-i18n-zh="逻辑关联" data-i18n-en="Logical"></span> <b id="st-lg">0</b></span>
-  <span id="save-state" style="color:var(--dimmer)"><span data-i18n data-i18n-zh="自动保存已开启" data-i18n-en="Auto-save on"></span></span>
+  <div class="stats">
+    <span class="stat" data-i18n data-i18n-attr="title" data-i18n-zh="工程数" data-i18n-en="Projects"><i class="ri-database-2-line"></i><b id="st-proj">0</b></span>
+    <span class="stat" data-i18n data-i18n-attr="title" data-i18n-zh="表" data-i18n-en="Tables"><i class="ri-table-line"></i><b id="st-t">0</b></span>
+    <span class="stat" data-i18n data-i18n-attr="title" data-i18n-zh="字段" data-i18n-en="Columns"><i class="ri-list-ordered"></i><b id="st-c">0</b></span>
+    <span class="stat" data-i18n data-i18n-attr="title" data-i18n-zh="物理外键" data-i18n-en="Physical FKs"><i class="ri-link"></i><b id="st-fk">0</b></span>
+    <span class="stat" data-i18n data-i18n-attr="title" data-i18n-zh="逻辑关联" data-i18n-en="Logical relations"><i class="ri-link-unlink"></i><b id="st-lg">0</b></span>
+  </div>
+  <span id="save-state"><span class="dot"></span><span data-i18n data-i18n-zh="自动保存已开启" data-i18n-en="Auto-save on"></span></span>
   <span id="status-hint" data-i18n data-i18n-zh="拖拽平移 · 滚轮缩放 · 双击空白建表 · 右键快捷菜单 · N 新建表 · 双击表折叠" data-i18n-en="Drag to pan · Wheel to zoom · Double-click canvas to add · Right-click menu · N new table · Double-click to fold"></span>
 </div>
 

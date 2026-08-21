@@ -88,9 +88,11 @@ async function main() {
     });
   }
 
-  /* PWA：manifest 与 Service Worker 原样拷贝（内容不含待混淆逻辑） */
+  /* PWA：manifest 原样拷贝；sw.js 注入构建时间戳作为缓存版本（防止发布后用户拿到旧缓存） */
   fs.copyFileSync(path.join(ROOT, 'manifest.webmanifest'), path.join(DIST, 'manifest.webmanifest'));
-  fs.copyFileSync(path.join(ROOT, 'sw.js'), path.join(DIST, 'sw.js'));
+  let swSrc = fs.readFileSync(path.join(ROOT, 'sw.js'), 'utf8');
+  swSrc = swSrc.replace(/const CACHE = '[^']*';/, "const CACHE = 'erd-studio-" + Date.now() + "';");
+  fs.writeFileSync(path.join(DIST, 'sw.js'), swSrc);
 
   /* JS：逐文件混淆，输出文件名随机化 */
   const jsDir = path.join(ROOT, 'assets', 'js');

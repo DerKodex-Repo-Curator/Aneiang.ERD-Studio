@@ -5,6 +5,8 @@ var ERD = window.ERD = window.ERD || {};
 ERD.render = (function () {
   const HH = ERD.HEAD_H;
   let canvas, svg, viewport, edgeEls = [], byKey = {}, rafPending = false;
+  let zoneCache = null;              // 域 key → 域对象 缓存（renderZones 时重建）
+  let defsEl = null, defsCv = null, defsCvHi = null;   // SVG marker 缓存（主题色变化时重建）
 
   /* 迷你地图状态 */
   const mm = { cv: null, ctx: null, W: 170, H: 120, s: 0, ox: 0, oy: 0, bx: 0, by: 0, dragging: false };
@@ -32,13 +34,20 @@ ERD.render = (function () {
   }
 
   function tableH(t) { return ERD.tableH(t); }
+  function zoneInfo() {
+    if (!zoneCache) {
+      zoneCache = new Map();
+      (ERD.store.state.p.zones || []).forEach(z => zoneCache.set(z.key, z));
+    }
+    return zoneCache;
+  }
   function zoneColor(zoneKey) {
-    const z = ERD.store.state.p.zones.find(x => x.key === zoneKey);
+    const z = zoneInfo().get(zoneKey);
     return z ? ERD.safeColor(z.color) : '#8b93a3';
   }
   function zoneName(zoneKey) {
-    const z = ERD.store.state.p.zones.find(x => x.key === zoneKey);
-    return z ? z.name : '未分组';
+    const z = zoneInfo().get(zoneKey);
+    return z ? ERD.zoneLabel(z) : _t('未分组', 'Ungrouped');
   }
 
   /* ---------- 全量渲染 ---------- */
@@ -56,6 +65,7 @@ ERD.render = (function () {
 
   /* ---------- 域背景带 ---------- */
   function renderZones() {
+    zoneCache = null;   // 域数据可能已变，重建缓存
     canvas.querySelectorAll('.zone').forEach(z => z.remove());
     const p = ERD.store.state.p;
     const groups = {};
@@ -72,7 +82,7 @@ ERD.render = (function () {
       const lb = document.createElement('div');
       lb.className = 'zone-label';
       lb.style.color = zoneColor(zk);
-      lb.textContent = zoneName(zk) + ' · ' + ts.length + ' 表';
+      lb.textContent = zoneName(zk) + ' · ' + ts.length + _t(' 表', ' tables');
       z.appendChild(lb);
       canvas.insertBefore(z, svg);
     });
@@ -87,14 +97,14 @@ ERD.render = (function () {
     const head = document.createElement('div');
     head.className = 't-head';
     head.style.borderTopColor = zoneColor(t.zone);
-    const core = t.core ? '<span class="t-core" style="background:' + zoneColor(t.zone) + '">核心</span>' : '';
-    const folded = t.fold ? '<span class="t-folded">已折叠</span>' : '';
+    const core = t.core ? '<span class="t-core" style="background:' + zoneColor(t.zone) + '">' + _t('核心', 'Core') + '</span>' : '';
+    const folded = t.fold ? '<span class="t-folded">' + _t('已折叠', 'Folded') + '</span>' : '';
     /* 两行表头：行1 = 英文表名 + 折叠箭头；行2 = 中文名 + 列数 + 标记 */
     head.innerHTML =
       '<div class="t-row1"><span class="t-name" title="' + ERD.esc(t.key) + '">' + ERD.esc(t.key) + '</span>' +
-      '<button class="t-fold" title="' + (t.fold ? '展开字段' : '折叠字段') + '"><i class="ri-arrow-' + (t.fold ? 'right' : 'down') + '-s-line"></i></button></div>' +
+      '<button class="t-fold" title="' + (t.fold ? _t('展开字段', 'Expand fields') : _t('折叠字段', 'Fold fields')) + '"><i class="ri-arrow-' + (t.fold ? 'right' : 'down') + '-s-line"></i></button></div>' +
       '<div class="t-row2"><span class="t-cn" title="' + ERD.esc(t.cn || '') + '">' + ERD.esc(t.cn || '') + '</span>' +
-      '<span class="t-cnt">' + t.cols.filter(c => c[2] !== 'g').length + '列</span>' + core + folded + '</div>';
+      '<span class="t-cnt">' + t.cols.filter(c => c[2] !== 'g').length + _t('列', ' cols') + '</span>' + core + folded + '</div>';
     el.appendChild(head);
     if (!t.fold) {
       const rows = document.createElement('div');
@@ -153,28 +163,44 @@ ERD.render = (function () {
     applySelStyles();
   }
 
+  /* 单表定点刷新：仅重建该卡片 + 域背景 + 连线 + 图例/统计（避免全量重建所有表） */
+  function refreshTable(key) {
+    const t = byKey[key]; if (!t) return;
+    updateTableCard(key);
+    /* 表重命名（key 变更）时重建 byKey 映射，避免后续定点刷新失配 */
+    if (t.key !== key) { byKey[t.key] = t; delete byKey[key]; }
+    renderZones();
+    renderEdges();
+    renderStats();
+    renderLegend();
+    applyFilter();
+    applySelStyles();
+  }
+
+  /* 关系变更：重绘连线 + 统计 + 受影响表卡片（fk 徽标） */
+  function refreshRelations(scope) {
+    renderEdges();
+    renderStats();
+    const keys = scope && scope.keys ? scope.keys : (scope && scope.key ? [scope.key] : []);
+    keys.forEach(k => { const t = byKey[k]; if (t) updateTableCard(k); });
+    renderZones();
+    applyFilter();
+    applySelStyles();
+  }
+
   /* ---------- 连线 ---------- */
   function colY(t, colName) { return ERD.colPos(t, colName).y; }
 
   function renderEdges() {
     const p = ERD.store.state.p;
-    svg.innerHTML = '';
+    /* 只清掉旧连线，保留 defs（marker 缓存，主题色未变则无需重建） */
+    Array.from(svg.children).forEach(ch => { if (ch.tagName !== 'defs') svg.removeChild(ch); });
     edgeEls = [];
     const bounds = canvasBounds();
     svg.setAttribute('width', Math.max(10, bounds.w));
     svg.setAttribute('height', Math.max(10, bounds.h));
     const cv = cssVar('--fk', '#7aa2f7'), cvHi = cssVar('--edge-hi', '#e0af68');
-    const defs = document.createElementNS('http://www.w3.org/2000/svg', 'defs');
-    defs.innerHTML =
-      '<marker id="crow" markerWidth="16" markerHeight="14" refX="15" refY="7" orient="auto" markerUnits="userSpaceOnUse">' +
-      '<path d="M0 7 L14 1 M0 7 L14 7 M0 7 L14 13" stroke="' + cv + '" stroke-width="1.3" fill="none"/></marker>' +
-      '<marker id="crow-hi" markerWidth="16" markerHeight="14" refX="15" refY="7" orient="auto" markerUnits="userSpaceOnUse">' +
-      '<path d="M0 7 L14 1 M0 7 L14 7 M0 7 L14 13" stroke="' + cvHi + '" stroke-width="1.6" fill="none"/></marker>' +
-      '<marker id="one" markerWidth="10" markerHeight="14" refX="2" refY="7" orient="auto" markerUnits="userSpaceOnUse">' +
-      '<path d="M8 1 L8 13" stroke="' + cv + '" stroke-width="1.3" fill="none"/></marker>' +
-      '<marker id="one-hi" markerWidth="10" markerHeight="14" refX="2" refY="7" orient="auto" markerUnits="userSpaceOnUse">' +
-      '<path d="M8 1 L8 13" stroke="' + cvHi + '" stroke-width="1.6" fill="none"/></marker>';
-    svg.appendChild(defs);
+    ensureDefs(cv, cvHi);
 
     p.relations.forEach(r => {
       if (r.type === 'fk') drawFk(r);
@@ -184,6 +210,27 @@ ERD.render = (function () {
     ghost.setAttribute('id', 'ghost');
     svg.appendChild(ghost);
     applySelStyles();
+  }
+
+  /* SVG 箭头 marker 复用：仅当主题色变化时重建 innerHTML */
+  function ensureDefs(cv, cvHi) {
+    if (!defsEl || !defsEl.isConnected) {
+      defsEl = document.createElementNS('http://www.w3.org/2000/svg', 'defs');
+      svg.appendChild(defsEl);
+      defsCv = defsCvHi = null;
+    }
+    if (defsCv !== cv || defsCvHi !== cvHi) {
+      defsEl.innerHTML =
+        '<marker id="crow" markerWidth="16" markerHeight="14" refX="15" refY="7" orient="auto" markerUnits="userSpaceOnUse">' +
+        '<path d="M0 7 L14 1 M0 7 L14 7 M0 7 L14 13" stroke="' + cv + '" stroke-width="1.3" fill="none"/></marker>' +
+        '<marker id="crow-hi" markerWidth="16" markerHeight="14" refX="15" refY="7" orient="auto" markerUnits="userSpaceOnUse">' +
+        '<path d="M0 7 L14 1 M0 7 L14 7 M0 7 L14 13" stroke="' + cvHi + '" stroke-width="1.6" fill="none"/></marker>' +
+        '<marker id="one" markerWidth="10" markerHeight="14" refX="2" refY="7" orient="auto" markerUnits="userSpaceOnUse">' +
+        '<path d="M8 1 L8 13" stroke="' + cv + '" stroke-width="1.3" fill="none"/></marker>' +
+        '<marker id="one-hi" markerWidth="10" markerHeight="14" refX="2" refY="7" orient="auto" markerUnits="userSpaceOnUse">' +
+        '<path d="M8 1 L8 13" stroke="' + cvHi + '" stroke-width="1.6" fill="none"/></marker>';
+      defsCv = cv; defsCvHi = cvHi;
+    }
   }
 
   function addPath(from, to, logical, rel, label) {
@@ -432,19 +479,23 @@ ERD.render = (function () {
     const p = ERD.store.state.p;
     const zonesHtml = p.zones.map(z => {
       const n = p.tables.filter(t => t.zone === z.key).length;
-      return '<div><span class="zdot" style="background:' + ERD.esc(z.color) + '"></span>' + ERD.esc(z.name) + '（' + n + '）</div>';
+      return '<div><span class="zdot" style="background:' + ERD.esc(z.color) + '"></span>' + ERD.esc(ERD.zoneLabel(z)) + '（' + n + '）</div>';
     }).join('');
     lg.innerHTML =
-      '<h3>图例 <span class="lg-toggle" title="折叠/展开"><i class="ri-arrow-down-s-line"></i></span></h3>' +
+      '<h3>' + _t('图例', 'Legend') + ' <span class="lg-toggle" title="' + _t('折叠/展开', 'Fold / expand') + '"><i class="ri-arrow-down-s-line"></i></span></h3>' +
       '<div class="lg-body">' +
-      '<div class="lg-row"><svg width="46" height="12"><path class="lgp" d="M2 6 H30 M30 1 L44 6 M30 11 L44 6 M2 3 L2 9" stroke-width="1.4" fill="none"/></svg> 1 ∶ N（一对多）</div>' +
-      '<div class="lg-row"><svg width="46" height="12"><path class="lgp" d="M2 6 H44 M2 3 L2 9 M44 3 L44 9" stroke-width="1.4" fill="none"/></svg> 1 ∶ 1（一对一）</div>' +
-      '<div class="lg-row"><svg width="46" height="12"><path class="lgp-lg" d="M2 6 H44" stroke-width="1.4" stroke-dasharray="6 4" fill="none"/></svg> 逻辑关联（无物理外键）</div>' +
-      '<div style="margin-top:6px"><span class="badge b-pk">PK</span> 主键 &nbsp;<span class="badge b-fk">FK</span> 外键 &nbsp;<span class="badge b-uk">UK</span> 唯一键 &nbsp;<span class="badge b-idx">IDX</span> 索引</div>' +
-      '<div style="margin-top:5px"><span class="lg-nn">✱</span> 非空（NOT NULL）</div>' +
+      '<div class="lg-row"><svg width="46" height="12"><path class="lgp" d="M2 6 H30 M30 1 L44 6 M30 11 L44 6 M2 3 L2 9" stroke-width="1.4" fill="none"/></svg> 1 ∶ N' + _t('（一对多）', ' (one-to-many)') + '</div>' +
+      '<div class="lg-row"><svg width="46" height="12"><path class="lgp" d="M2 6 H44 M2 3 L2 9 M44 3 L44 9" stroke-width="1.4" fill="none"/></svg> 1 ∶ 1' + _t('（一对一）', ' (one-to-one)') + '</div>' +
+      '<div class="lg-row"><svg width="46" height="12"><path class="lgp-lg" d="M2 6 H44" stroke-width="1.4" stroke-dasharray="6 4" fill="none"/></svg> ' + _t('逻辑关联（无物理外键）', 'Logical (no physical FK)') + '</div>' +
+      '<div style="margin-top:6px"><span class="badge b-pk">PK</span> ' + _t('主键', 'Primary key') + ' &nbsp;<span class="badge b-fk">FK</span> ' + _t('外键', 'Foreign key') + ' &nbsp;<span class="badge b-uk">UK</span> ' + _t('唯一键', 'Unique') + ' &nbsp;<span class="badge b-idx">IDX</span> ' + _t('索引', 'Index') + '</div>' +
+      '<div style="margin-top:5px"><span class="lg-nn">✱</span> ' + _t('非空（NOT NULL）', 'Not null (NOT NULL)') + '</div>' +
       '<div style="margin-top:8px;border-top:1px solid var(--line);padding-top:7px" class="lg-zones">' + zonesHtml + '</div>' +
       '</div>';
-    lg.querySelector('.lg-toggle').onclick = () => lg.classList.toggle('folded');
+    lg.querySelector('.lg-toggle').onclick = () => {
+      const folded = lg.classList.toggle('folded');
+      const ic = lg.querySelector('.lg-toggle i');
+      if (ic) ic.className = folded ? 'ri-arrow-right-s-line' : 'ri-arrow-down-s-line';
+    };
   }
 
   function renderStats() {
@@ -461,7 +512,7 @@ ERD.render = (function () {
 
   return {
     init, renderAll, renderTables, renderEdges, renderZones, renderLegend, renderStats,
-    updateTableCard, scheduleMove, applyView, fit,
+    updateTableCard, refreshTable, refreshRelations, scheduleMove, applyView, fit,
     applyFocusStyles, applySelStyles, applyFilter,
     byKey: () => byKey, edgeEls: () => edgeEls
   };
