@@ -6,13 +6,16 @@
   </p>
   <p>
     <a href="https://erd.aneiang.com/" target="_blank">
-      <img src="https://img.shields.io/badge/🚀_立即体验-在线版-blue?style=for-the-badge" alt="在线体验">
+      <img src="https://img.shields.io/badge/🚀_立即体验-在线版-blue?style=flat-square" alt="在线体验">
     </a>
     <a href="https://github.com/AneiangSoft/Aneiang.ERD-Studio/stargazers">
       <img src="https://img.shields.io/github/stars/AneiangSoft/Aneiang.ERD-Studio?style=flat-square&logo=github&color=blue" alt="GitHub Stars">
     </a>
     <a href="https://github.com/AneiangSoft/Aneiang.ERD-Studio/issues">
       <img src="https://img.shields.io/github/issues/AneiangSoft/Aneiang.ERD-Studio?style=flat-square&logo=github&color=orange" alt="GitHub Issues">
+    </a>
+    <a href="https://hub.docker.com/r/caco/aneiang-erd-studio">
+      <img src="https://img.shields.io/docker/pulls/caco/aneiang-erd-studio?style=flat-square&logo=docker&color=0db7ed" alt="Docker Pulls">
     </a>
     <a href="https://github.com/AneiangSoft/Aneiang.ERD-Studio/blob/main/LICENSE">
       <img src="https://img.shields.io/badge/license-MIT-green?style=flat-square" alt="License">
@@ -21,9 +24,10 @@
     <img src="https://img.shields.io/badge/PWA-ready-5a0fc8?style=flat-square&logo=pwa" alt="PWA Ready">
   </p>
   <p>
-    <a href="#快速开始">快速开始</a> ·
+    <a href="#-在线体验">在线体验</a> ·
     <a href="#功能特性">功能特性</a> ·
     <a href="#界面预览">界面预览</a> ·
+    <a href="#快速开始">快速开始</a> ·
     <a href="#常见问题faq">FAQ</a> ·
     <a href="#参与贡献">参与贡献</a>
   </p>
@@ -49,6 +53,16 @@
 | 📦 **6 种导出格式** | 工程 JSON / SQL / PNG / SVG / Mermaid / Excel 数据字典 |
 | ⌨️ **高效操作** | 快捷键、右键菜单、拖拽连线、批量对齐、自动布局 |
 | 📱 **PWA 支持** | 可安装为桌面应用，离线启动，秒开体验 |
+
+## 🚀 在线体验
+
+直接访问官方站点即可使用，无需安装：
+
+👉 **[https://erd.aneiang.com/](https://erd.aneiang.com/)**
+
+- 纯前端运行，数据保存在你的浏览器本地
+- 支持 PWA 安装到桌面，离线可用
+- 与 GitHub 版本同步更新，Service Worker 自动缓存与增量更新
 
 ## 界面预览
 
@@ -121,16 +135,6 @@
 4. **整理**：按业务域「自动布局」，多选表右键可对齐 / 等距分布 / 批量折叠
 5. **导入 / 导出**：导入已有 SQL DDL 逆向生成；导出 SQL（8 种方言）/ PNG / SVG / Mermaid / Excel 数据字典
 
-## 🚀 在线体验
-
-直接访问官方站点即可使用，无需安装：
-
-👉 **[https://erd.aneiang.com/](https://erd.aneiang.com/)**
-
-- 纯前端运行，数据保存在你的浏览器本地
-- 支持 PWA 安装到桌面，离线可用
-- 与 GitHub 版本同步更新
-
 ## 快速开始
 
 ### 方式一：直接打开（零部署）
@@ -151,21 +155,75 @@ npx serve .
 
 ### 方式三：Docker 私有化部署（推荐内网使用）
 
-#### 直接拉取官方镜像（推荐）
+官方镜像已发布到 Docker Hub：**[caco/aneiang-erd-studio](https://hub.docker.com/r/caco/aneiang-erd-studio)**
+
+#### 方式 A：docker run（最快）
 
 ```bash
-docker run -d --name erd-studio -p 8080:80 --restart unless-stopped caco/aneiang-erd-studio:latest
+docker run -d \
+  --name erd-studio \
+  -p 8080:80 \
+  --restart unless-stopped \
+  caco/aneiang-erd-studio:latest
 ```
 
-或使用 docker compose：
+#### 方式 B：docker compose（推荐）
+
+项目根目录已提供 `docker-compose.yml`，直接启动：
 
 ```bash
 docker compose up -d
 ```
 
-访问 http://<服务器IP>:8080 。镜像基于 nginx:alpine，仅约 10MB 增量，无任何外部请求。
+或手动创建 `docker-compose.yml`：
+
+```yaml
+services:
+  erd-studio:
+    image: caco/aneiang-erd-studio:latest
+    container_name: erd-studio
+    ports:
+      - "8080:80"
+    restart: unless-stopped
+```
+
+#### 部署验证
+
+启动后访问 `http://<服务器IP>:8080` 即可使用。
+
+健康检查：
+```bash
+docker ps  # 查看容器状态，STATUS 显示 (healthy) 表示正常
+```
+
+#### 镜像说明
+
+- 基于 `nginx:1.27-alpine`，镜像体积小（约 10MB 增量）
+- 纯静态文件托管，无后端、无数据库、无外部请求
+- 内置健康检查（每 30 秒检测一次）
+- 支持 `linux/amd64` 和 `linux/arm64` 双架构
+- 标签：`latest`（最新稳定版）
+
+#### 更新镜像
+
+```bash
+# 拉取最新镜像
+docker pull caco/aneiang-erd-studio:latest
+
+# 重启容器（docker compose 方式）
+docker compose up -d
+
+# 或 docker run 方式
+docker stop erd-studio
+docker rm erd-studio
+docker run -d --name erd-studio -p 8080:80 --restart unless-stopped caco/aneiang-erd-studio:latest
+```
+
+> 浏览器端 Service Worker 会自动缓存新版本，下次打开时提示刷新。
 
 #### 自行构建镜像
+
+> 仅在需要修改源码后自行构建时使用。构建前需先生成混淆产物：`cd build && npm install && node build.js`，产出在 `dist/` 目录。
 
 ```bash
 docker build -t erd-studio .
@@ -175,7 +233,7 @@ docker run -d --name erd-studio -p 8080:80 erd-studio
 多架构（x86_64 / arm64）构建，需 Docker Buildx：
 
 ```bash
-docker buildx build --platform linux/amd64,linux/arm64 -t erd-studio:latest --push .
+docker buildx build --platform linux/amd64,linux/arm64 -t caco/aneiang-erd-studio:latest --push .
 ```
 
 ## 数据存储说明（重要）
@@ -201,13 +259,16 @@ docker buildx build --platform linux/amd64,linux/arm64 -t erd-studio:latest --pu
 | `Delete` | 删除选中的表 / 关系 |
 | `Esc` | 退出连线模式 / 取消选择 |
 | `F` / `+` / `-` | 适配窗口 / 放大 / 缩小 |
+| `空格` | 按住拖拽平移画布 |
 
 ## 目录结构
 
 ```
 ├── index.html              # 入口（无构建、无依赖，直接可跑）
 ├── manifest.webmanifest    # PWA 应用清单（可安装 / 离线）
-├── sw.js                   # Service Worker（离线缓存 + 更新）
+├── sw.js                   # Service Worker（stale-while-revalidate 离线缓存 + 更新提示）
+├── robots.txt              # SEO 爬虫规则
+├── sitemap.xml             # SEO 站点地图
 ├── assets/
 │   ├── css/
 │   │   ├── base.css        # 主题变量 / 布局 / 面板 / 弹窗
@@ -225,15 +286,18 @@ docker buildx build --platform linux/amd64,linux/arm64 -t erd-studio:latest --pu
 │   │   ├── sql.js          # SQL DDL 解析器与多方言生成器（8 种数据库）
 │   │   ├── sample.js       # 内置演示工程（电商订单系统 12 表）
 │   │   └── app.js          # 启动入口
-│   ├── icons/              # PWA / 桌面图标（SVG，本地内置）
+│   ├── icons/              # PWA / 桌面 / LOGO 图标（SVG，本地内置）
 │   └── fonts/
 │       ├── remixicon.woff2 # Remix Icon 字体（本地内置）
 │       └── NOTICE.md       # 图标许可说明
 ├── build/                  # 发布构建（混淆 + 压缩 + 校验 + Lint 配置）
 ├── test/                   # 冒烟测试（Node 运行，无 DOM）
+├── docs/                   # 文档与截图
+├── dist/                   # 构建产物（混淆压缩版，由 build/build.js 生成）
 ├── Dockerfile              # nginx:alpine 容器化部署（使用 dist 混淆产物）
 ├── docker-compose.yml
-├── nginx.conf
+├── nginx.conf              # nginx 配置（gzip / 缓存 / MIME）
+├── .dockerignore
 ├── LICENSE                 # MIT
 ├── README.md
 └── README.zh-CN.md
@@ -244,6 +308,9 @@ docker buildx build --platform linux/amd64,linux/arm64 -t erd-studio:latest --pu
 - 零依赖、零构建：原生 HTML/CSS/JS，无框架、无 npm、无运行时外部请求
 - xlsx 导出为内置最小化实现（ZIP STORE + OOXML），无第三方库
 - PNG 导出基于 SVG 序列化 + Canvas 光栅化，全部在浏览器本地完成
+- PWA 支持：Service Worker 采用 stale-while-revalidate 策略，首次访问后离线可用，新版本自动后台更新并提示刷新
+- SEO 优化：完整 meta 标签、Open Graph、Twitter Card、JSON-LD 结构化数据、robots.txt、sitemap.xml
+- 数据安全：localStorage 主存储 + IndexedDB 救援镜像双保险，无任何后端与遥测
 
 ## 常见问题（FAQ）
 
@@ -261,6 +328,16 @@ docker buildx build --platform linux/amd64,linux/arm64 -t erd-studio:latest --pu
 
 **为什么没有账号 / 云端同步？**
 项目定位「零后端、数据完全私有」，不上传任何数据、无遥测。需要多端同步时用 JSON 文件或分享链接自行流转。
+
+**Docker 部署后数据会丢吗？**
+不会。本工具是纯前端应用，所有数据仍保存在**用户浏览器本地**，与部署方式无关。Docker 镜像只提供静态文件托管，不存储任何用户数据。
+
+**如何更新 Docker 镜像？**
+```bash
+docker pull caco/aneiang-erd-studio:latest
+docker compose up -d
+```
+浏览器端 Service Worker 会自动缓存新版本，下次打开时提示刷新。
 
 ## 浏览器兼容性
 

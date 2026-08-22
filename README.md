@@ -6,13 +6,16 @@
   </p>
   <p>
     <a href="https://erd.aneiang.com/" target="_blank">
-      <img src="https://img.shields.io/badge/🚀_Try_Online-Live_Demo-blue?style=for-the-badge" alt="Try Online">
+      <img src="https://img.shields.io/badge/🚀_Try_Online-Live_Demo-blue?style=flat-square" alt="Try Online">
     </a>
     <a href="https://github.com/AneiangSoft/Aneiang.ERD-Studio/stargazers">
       <img src="https://img.shields.io/github/stars/AneiangSoft/Aneiang.ERD-Studio?style=flat-square&logo=github&color=blue" alt="GitHub Stars">
     </a>
     <a href="https://github.com/AneiangSoft/Aneiang.ERD-Studio/issues">
       <img src="https://img.shields.io/github/issues/AneiangSoft/Aneiang.ERD-Studio?style=flat-square&logo=github&color=orange" alt="GitHub Issues">
+    </a>
+    <a href="https://hub.docker.com/r/caco/aneiang-erd-studio">
+      <img src="https://img.shields.io/docker/pulls/caco/aneiang-erd-studio?style=flat-square&logo=docker&color=0db7ed" alt="Docker Pulls">
     </a>
     <a href="https://github.com/AneiangSoft/Aneiang.ERD-Studio/blob/main/LICENSE">
       <img src="https://img.shields.io/badge/license-MIT-green?style=flat-square" alt="License">
@@ -21,9 +24,10 @@
     <img src="https://img.shields.io/badge/PWA-ready-5a0fc8?style=flat-square&logo=pwa" alt="PWA Ready">
   </p>
   <p>
-    <a href="#quick-start">Quick Start</a> ·
+    <a href="#-try-online">Try Online</a> ·
     <a href="#features">Features</a> ·
     <a href="#screenshots">Screenshots</a> ·
+    <a href="#quick-start">Quick Start</a> ·
     <a href="#faq">FAQ</a> ·
     <a href="#contributing">Contributing</a>
   </p>
@@ -49,6 +53,16 @@ English | [简体中文](README.zh-CN.md)
 | 📦 **6 export formats** | Project JSON / SQL / PNG / SVG / Mermaid / Excel data dictionary |
 | ⌨️ **Efficient workflow** | Keyboard shortcuts, context menus, drag-to-connect, batch align, auto layout |
 | 📱 **PWA ready** | Install as a desktop app — offline launch, instant startup |
+
+## 🚀 Try Online
+
+Use it directly in your browser — no installation required:
+
+👉 **[https://erd.aneiang.com/](https://erd.aneiang.com/)**
+
+- Pure frontend, all data stays in your browser locally
+- PWA installable for offline use
+- Synced with the latest GitHub release; Service Worker auto-caches and incremental updates
 
 ## Screenshots
 
@@ -121,16 +135,6 @@ English | [简体中文](README.zh-CN.md)
 4. **Tidy up** — auto-layout by business domain; multi-select tables and right-click to align / even distribute / fold
 5. **Import & export** — import existing SQL DDL to reverse-engineer a schema; export SQL (8 dialects), PNG / SVG / Mermaid / Excel data dictionary
 
-## 🚀 Try Online
-
-Use it directly in your browser — no installation required:
-
-👉 **[https://erd.aneiang.com/](https://erd.aneiang.com/)**
-
-- Pure frontend, all data stays in your browser locally
-- PWA installable for offline use
-- Synced with the latest GitHub release
-
 ## Quick Start
 
 ### Option 1 — Open directly
@@ -151,31 +155,85 @@ Open http://localhost:8080
 
 ### Option 3 — Docker deployment
 
-#### Pull the official image (recommended)
+The official image is published on Docker Hub: **[caco/aneiang-erd-studio](https://hub.docker.com/r/caco/aneiang-erd-studio)**
+
+#### Option A: docker run (quickest)
 
 ```bash
-docker run -d --name erd-studio -p 8080:80 --restart unless-stopped caco/aneiang-erd-studio:latest
+docker run -d \
+  --name erd-studio \
+  -p 8080:80 \
+  --restart unless-stopped \
+  caco/aneiang-erd-studio:latest
 ```
 
-Or with docker compose:
+#### Option B: docker compose (recommended)
+
+A `docker-compose.yml` is included in the repo — just run:
 
 ```bash
 docker compose up -d
 ```
 
-Open http://<server-ip>:8080. The image is based on `nginx:alpine` (roughly 10 MB incremental) and makes no external requests.
+Or create your own `docker-compose.yml`:
+
+```yaml
+services:
+  erd-studio:
+    image: caco/aneiang-erd-studio:latest
+    container_name: erd-studio
+    ports:
+      - "8080:80"
+    restart: unless-stopped
+```
+
+#### Verify deployment
+
+Open `http://<server-ip>:8080` in your browser.
+
+Health check:
+```bash
+docker ps  # STATUS shows (healthy) when the container is ready
+```
+
+#### Image details
+
+- Based on `nginx:1.27-alpine` — small footprint (~10 MB incremental)
+- Pure static file hosting — no backend, no database, no external requests
+- Built-in healthcheck (every 30 seconds)
+- Multi-architecture: `linux/amd64` + `linux/arm64`
+- Tag: `latest` (latest stable release)
+
+#### Updating the image
+
+```bash
+# Pull the latest image
+docker pull caco/aneiang-erd-studio:latest
+
+# Restart with docker compose
+docker compose up -d
+
+# Or with docker run
+docker stop erd-studio
+docker rm erd-studio
+docker run -d --name erd-studio -p 8080:80 --restart unless-stopped caco/aneiang-erd-studio:latest
+```
+
+> The browser's Service Worker will auto-cache the new version and prompt for a refresh on the next visit.
 
 #### Build your own image
+
+> Only needed if you modify the source code. First generate the minified dist: `cd build && npm install && node build.js`. Output goes to `dist/`.
 
 ```bash
 docker build -t erd-studio .
 docker run -d --name erd-studio -p 8080:80 erd-studio
 ```
 
-Multi-architecture (x86_64 / arm64) images require Docker Buildx:
+Multi-architecture (x86_64 / arm64) builds require Docker Buildx:
 
 ```bash
-docker buildx build --platform linux/amd64,linux/arm64 -t erd-studio:latest --push .
+docker buildx build --platform linux/amd64,linux/arm64 -t caco/aneiang-erd-studio:latest --push .
 ```
 
 ## Data Storage
@@ -194,38 +252,52 @@ The platform has **no backend**. All project data is saved to the **current brow
 | `Ctrl+Z` / `Ctrl+Y` | Undo / Redo |
 | `Ctrl+F` | Focus search box |
 | `Ctrl+S` | Save to localStorage immediately |
+| `Ctrl/Cmd+click` | Multi-select / deselect tables |
+| `Shift+drag` | Marquee-select tables in a rectangle |
 | `N` | New table (template dialog) |
 | `C` | Toggle connect mode |
 | `Delete` | Delete the selected table / relation |
 | `Esc` | Exit connect mode / clear selection |
 | `F` / `+` / `-` | Fit to window / Zoom in / Zoom out |
+| `Space` | Hold and drag to pan the canvas |
 
 ## Project Structure
 
 ```
 ├── index.html              # Entry point (no build step, no dependencies)
+├── manifest.webmanifest    # PWA manifest (installable / offline)
+├── sw.js                   # Service Worker (stale-while-revalidate caching + update prompt)
+├── robots.txt              # SEO crawler rules
+├── sitemap.xml             # SEO sitemap
 ├── assets/
 │   ├── css/
 │   │   ├── base.css        # Theme variables / layout / panels / modals
-│   │   ├── canvas.css      # Canvas / cards / edges / legend
+│   │   ├── canvas.css      # Canvas / cards / edges / legend / mini-map
 │   │   └── icons.css       # Font icon subset
 │   ├── js/
-│   │   ├── store.js        # Data model / localStorage / undo-redo / event bus
-│   │   ├── render.js       # Canvas rendering (domains / cards / edges / legend)
+│   │   ├── store.js        # Data model / localStorage + IndexedDB rescue / undo-redo / event bus
+│   │   ├── i18n.js         # Pure frontend i18n (ZH / EN)
+│   │   ├── render.js       # Canvas rendering (domains / cards / edges / legend / mini-map)
 │   │   ├── interact.js     # Pan & zoom / drag / selection / connect mode / shortcuts
 │   │   ├── editor.js       # Property panel / dialogs / project & domain management / auto layout
 │   │   ├── ctxmenu.js      # Right-click context menus
 │   │   ├── presets.js      # Table templates & quick-field library
-│   │   ├── io.js           # Import / export (JSON / SQL / PNG / SVG / Mermaid / XLSX)
+│   │   ├── io.js           # Import / export + local file I/O + share links
 │   │   ├── sql.js          # SQL DDL parser & multi-dialect generator (8 databases)
 │   │   ├── sample.js       # Built-in demo project (e-commerce, 12 tables)
 │   │   └── app.js          # Startup entry
+│   ├── icons/              # PWA / desktop / logo icons (SVG, bundled locally)
 │   └── fonts/
 │       ├── remixicon.woff2 # Remix Icon font (bundled locally)
 │       └── NOTICE.md       # Icon license notice
+├── build/                  # Release build (minification + compression + validation + lint config)
+├── test/                   # Smoke tests (Node, no DOM)
+├── docs/                   # Documentation & screenshots
+├── dist/                   # Build output (minified, generated by build/build.js)
 ├── Dockerfile              # nginx:alpine containerization (uses dist build)
 ├── docker-compose.yml
-├── nginx.conf
+├── nginx.conf              # nginx config (gzip / caching / MIME)
+├── .dockerignore
 ├── LICENSE                 # MIT
 ├── README.md
 └── README.zh-CN.md
@@ -236,6 +308,9 @@ The platform has **no backend**. All project data is saved to the **current brow
 - Zero dependencies, zero build: plain HTML / CSS / JS, no framework, no npm, no runtime external requests
 - XLSX export is a minimal built-in implementation (ZIP STORE + OOXML) with no third-party library
 - PNG export serializes SVG and rasterizes it on a canvas, all inside the browser
+- PWA support: Service Worker with stale-while-revalidate strategy — works offline after first visit; new versions auto-update in the background with a refresh prompt
+- SEO optimized: full meta tags, Open Graph, Twitter Card, JSON-LD structured data, robots.txt, sitemap.xml
+- Data safety: localStorage primary storage + IndexedDB rescue mirror, no backend and no telemetry
 
 ## FAQ
 
@@ -253,6 +328,16 @@ Yes. It is pure frontend with zero dependencies and zero external requests, full
 
 **Why is there no account / cloud sync?**
 The project is designed as "zero-backend, data stays private" — nothing is uploaded and there is no telemetry. For multi-device sync, use JSON files or share links.
+
+**Will my data be lost if I deploy with Docker?**
+No. This is a pure frontend application — all data stays in the **user's browser**, regardless of how it's deployed. The Docker image only serves static files and stores no user data.
+
+**How do I update the Docker image?**
+```bash
+docker pull caco/aneiang-erd-studio:latest
+docker compose up -d
+```
+The browser's Service Worker will auto-cache the new version and prompt for a refresh on the next visit.
 
 ## Browser Compatibility
 
